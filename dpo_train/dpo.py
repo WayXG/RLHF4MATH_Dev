@@ -20,9 +20,9 @@ from trl import DPOTrainer
 
 # Define and parse arguments.
 
-
+############## HARD CODE
 def get_new(f, old_labels):
-
+    # We mask the user turn to create new labels
     labels = copy.deepcopy(old_labels)
     #masks = copy.deepcopy(old_masks)
     start = False
@@ -40,7 +40,7 @@ def get_new(f, old_labels):
             labels[j] = -100
             #masks[j] = 0
     return labels
-
+############
 
 
 @dataclass
@@ -144,12 +144,12 @@ class PreferenceDataCollatorWithPadding:
             rejected_sequence_tokens["labels"][: len(prompt_tokens["input_ids"])] = [self.label_pad_token_id] * len(
                 prompt_tokens["input_ids"]
             )
-                
+            ############ HARD CODE
             new_chosen_sequence_labels= get_new(chosen_sequence_tokens['input_ids'], chosen_sequence_tokens['labels'])            
             new_rej_sequence_labels = get_new(rejected_sequence_tokens['input_ids'], rejected_sequence_tokens['labels'])
             chosen_sequence_tokens["labels"] = new_chosen_sequence_labels
             rejected_sequence_tokens["labels"] = new_rej_sequence_labels
-
+            ############
             for k, toks in {
                 "chosen": chosen_sequence_tokens,
                 "rejected": rejected_sequence_tokens,
