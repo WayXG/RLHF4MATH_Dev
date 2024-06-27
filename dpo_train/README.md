@@ -48,13 +48,11 @@ mv dpo_train/dpo_trainer.py anaconda3/envs/dpo_train/lib/python3.10/site-package
 
 ## Running the Code
 
-Running the code with Gemma.
+Running the code before modify num_processes: 8 in zerox_for_dpo.yaml, the number 8 means that you will use 8 GPUs. The parameters, models, and datasets are provided in run_dpo.py.
 
 ```shell
 accelerate launch --config_file zero2_for_dpo.yaml run_dpo.py 
 ```
-
-You can also modify the learning rate, batch size, output_path.. with either command or modify the ScriptArguments in the run_dpo.py 
 
 If you encounter out-of-memory issue. Running the code with Gemma-2b-it with zero2_for_dpo.yaml or reduce the max length of the data.
 
