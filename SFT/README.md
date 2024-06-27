@@ -73,4 +73,3 @@ CUDA_VISIBLE_DEVICES="0,1,2,3" torchrun --nproc_per_node 4 --master_port 20001 -
 
 Finally, for the models without an official padding token (like Mistral and LLaMA3), you may need to set the padding token by prepare_model.py first.
 
-```
