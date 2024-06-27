@@ -25,11 +25,11 @@ class ScriptArguments:
 
     # training parameters
     model_name_or_path: Optional[str] = field(
-        default="1231czx/7b_510k_5e6_bz64_sft3peoch", #"/home/wexiong_google_com/wx/sft/RLHF-Reward-Modeling/pair-pm/pm_models/gemma-2b-it_bs128_lr1e-5/checkpoint-3511",
+        default="1231czx/7b_510k_5e6_bz64_sft3peoch", 
         metadata={"help": "the location of the model name or path"},
     )
     ref_model: Optional[str] = field(
-        default="1231czx/7b_510k_5e6_bz64_sft3peoch",#"/home/wexiong_google_com/wx/sft/RLHF-Reward-Modeling/pair-pm/pm_models/gemma-2b-it_bs128_lr1e-5/checkpoint-3511",
+        default="1231czx/7b_510k_5e6_bz64_sft3peoch",
         metadata={"help": "the location of the SFT model name or path"},
     )
     train_dir: Optional[str] = field(
@@ -37,7 +37,7 @@ class ScriptArguments:
         metadata={"help": "the location of the dataset name or path"},
     )
     eval_dir: Optional[str] = field(
-        default="1231czx/7B_iter1_dpo_N1_random_pair",  # "/export/home/data/gemma_it_2b_3w_k8_with_pairrm_rewards.json",
+        default="1231czx/7B_iter1_dpo_N1_random_pair", 
         metadata={"help": "the location of the evalset name or path"},
     )
     learning_rate: Optional[float] = field(default=4e-7, metadata={"help": "optimizer learning rate"})
@@ -116,14 +116,9 @@ def prepare_data(
     eot_token="",
     length_penalty=0,
 ) -> Dataset:
-    """Prepare the dataset for DPO training by rejection sampling.
-    We implement different strategies to select pairs, including
-    max_min: best v.s. worst
-    max_random: best v.s. random from the remaining;
-    max_max: best v.s. second best
-    max_min_p: best v.s. worst but we additionally add a length penalty in the reward value
+    """Prepare the dataset for DPO training.
+    The margin is not used currently and may be activated later.
     """
-    #ds = load_dataset("json", data_files=data_dir, split="train", field="instances")
     ds = load_dataset(data_dir, split='train')
     ds = ds.shuffle(seed=42)
     #ds = ds.select(range(2000))
@@ -137,52 +132,6 @@ def prepare_data(
     for sample in ds:
         chosen = sample['chosen']
         rejected = sample['rejected']
-        '''
-        if choose_type == "random":
-            idx0 = 0
-            idx1 = 1
-        elif choose_type == "max_random":
-            idx0 = np.argmax(sample["rewards"])
-            if idx0 == 0:
-                idx1 = 1
-            else:
-                idx1 = 0
-        elif choose_type == "max_min":
-            idx0 = np.argmax(sample["rewards"])
-            idx1 = np.argmin(sample["rewards"])
-        elif choose_type == "max_max":
-            sorted_indices = np.argsort(sample["rewards"])
-            idx0 = sorted_indices[-1]
-            idx1 = sorted_indices[-2]
-        elif choose_type == "max_min_p":
-            r = [
-                sample["rewards"][i] - length_penalty * len(sample["responses"][i])
-                for i in range(len(sample["rewards"]))
-            ]
-            idx0 = np.argmax(r)
-            idx1 = np.argmin(r)
-        else:
-            raise NotImplementedError
-
-        if type(idx0) == np.ndarray or type(idx0) == list:
-            assert len(idx0) == len(idx1)
-            for i in range(len(idx0)):
-                prompts.append(sample["prompt"])
-                pos.append(sample["responses"][idx0[i]] + eot_token)
-                neg.append(sample["responses"][idx1[i]] + eot_token)
-                margin.append((sample["rewards"][idx0[i]] - sample["rewards"][idx1[i]]) * margin_scale)
-        else:
-            if sample["rewards"][idx0] > sample["rewards"][idx1]:
-                prompts.append(sample["prompt"])
-                pos.append(sample["responses"][idx0] + eot_token)
-                neg.append(sample["responses"][idx1] + eot_token)
-                margin.append((sample["rewards"][idx0] - sample["rewards"][idx1]) * margin_scale)
-            elif sample["rewards"][idx0] < sample["rewards"][idx1]:
-                prompts.append(sample["prompt"])
-                pos.append(sample["responses"][idx1] + eot_token)
-                neg.append(sample["responses"][idx0] + eot_token)
-                margin.append((-sample["rewards"][idx0] + sample["rewards"][idx1]) * margin_scale)
-        '''
         prompt = tokenizer.apply_chat_template([chosen[0]], tokenize=False, add_generation_prompt=True)
         prompt2 = tokenizer.apply_chat_template([rejected[0]], tokenize=False, add_generation_prompt=True)
         if prompt != prompt2:
