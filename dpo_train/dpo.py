@@ -22,7 +22,7 @@ from trl import DPOTrainer
 
 ############## HARD CODE
 def get_new(f, old_labels):
-    # We mask the user turn to create new labels
+    # We mask the user turn to create new labels for Gemma
     labels = copy.deepcopy(old_labels)
     #masks = copy.deepcopy(old_masks)
     start = False
@@ -42,6 +42,30 @@ def get_new(f, old_labels):
     return labels
 ############
 
+'''
+def get_new(f, old_labels):
+    # For mistral v3.0
+    #return old_labels
+    labels = copy.deepcopy(old_labels)
+    #masks = copy.deepcopy(old_masks)
+    start = False
+    for j in range(len(f)):
+
+        if f[j] == 3:
+            start = True
+        if f[j] == 4 and start:
+            labels[j] = -100
+            #labels[j+1] = -100
+            #labels[j+2] = -100
+            #labels[j+3] = -100
+            #masks[j] = 0
+            #masks[j+1] = 0
+            start = False
+        if start:
+            labels[j] = -100
+            #masks[j] = 0
+    return labels
+'''
 
 @dataclass
 class PreferenceDataCollatorWithPadding:
