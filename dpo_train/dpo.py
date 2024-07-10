@@ -56,6 +56,7 @@ class PreferenceDataCollatorWithPadding:
     is_encoder_decoder: Optional[bool] = False
     max_target_length: Optional[int] = None
     mask_prompt: Optional[bool] = False
+    mask_user_turn: Optional[bool] = False
 
     def tokenize_batch_element(
         self,
@@ -145,10 +146,11 @@ class PreferenceDataCollatorWithPadding:
                 prompt_tokens["input_ids"]
             )
             ############ HARD CODE
-            new_chosen_sequence_labels= get_new(chosen_sequence_tokens['input_ids'], chosen_sequence_tokens['labels'])            
-            new_rej_sequence_labels = get_new(rejected_sequence_tokens['input_ids'], rejected_sequence_tokens['labels'])
-            chosen_sequence_tokens["labels"] = new_chosen_sequence_labels
-            rejected_sequence_tokens["labels"] = new_rej_sequence_labels
+            if self.mask_user_turn:
+                new_chosen_sequence_labels= get_new(chosen_sequence_tokens['input_ids'], chosen_sequence_tokens['labels'])            
+                new_rej_sequence_labels = get_new(rejected_sequence_tokens['input_ids'], rejected_sequence_tokens['labels'])
+                chosen_sequence_tokens["labels"] = new_chosen_sequence_labels
+                rejected_sequence_tokens["labels"] = new_rej_sequence_labels
             ############
             for k, toks in {
                 "chosen": chosen_sequence_tokens,
@@ -260,8 +262,14 @@ class PreferenceTrainer(DPOTrainer):
         compute_metrics: Optional[Callable[[EvalLoopOutput], Dict]] = None,
         mask_prompt: Optional[bool] = False,
         len_penalty: float = 0,
+        nll_coefficient: float = 0,
+        masking_user_turn: bool = True,
     ):
-
+        #################
+        self.nll_coefficient = nll_coefficient  # dpo_loss + self.nll_coefficient * nll_loss on preferred response
+        self.masking_user_turn = masking_user_turn  # whether we mask the user turn or not for implementing m-dpo
+        #################
+        
         if data_collator is None:
             data_collator = PreferenceDataCollatorWithPadding(
                 tokenizer,
@@ -273,6 +281,7 @@ class PreferenceTrainer(DPOTrainer):
                 is_encoder_decoder=False,
                 max_target_length=max_target_length,
                 mask_prompt=mask_prompt,
+                mask_user_turn = self.masking_user_turn
             )
         super().__init__(
             model=model,
@@ -440,7 +449,10 @@ class PreferenceTrainer(DPOTrainer):
             len_penalty=len_penalty,
         )
         ############## HARD CODE
-        losses = losses + 1.0 * policy_nll_loss
+        if self.nll_coefficient > 0:
+            losses = losses + self.nll_coefficient * policy_nll_loss
+        else:
+            pass
         #############
         reward_accuracies = (chosen_rewards > rejected_rewards).float()
 
