@@ -1,4 +1,4 @@
-base_model: 1231czx/7b_510k_5e6_bz64_sft3peoch
+base_model: google/codegemma-1.1-7b-it
 model_type: AutoModelForCausalLM
 tokenizer_type: AutoTokenizer
 
@@ -7,19 +7,19 @@ load_in_4bit: false
 strict: false
 
 datasets:
-  - path: 1231czx/7B_iter1_sft_N3
+  - path: RRLHF/math_instruct_only510k
     conversation: gemma
     type: sharegpt.load_ultrachat
     split: "train"
     train_on_split: "train"
 
-warmup_steps: 40
+warmup_steps: 50
 val_set_size: 0.0
-output_dir: ./pm_models/gemma_2b_rs_iter1_merged
+output_dir: ./pm_models/gemma-7b-it_bz64_lr5e-6_non_pack
 wandb_project: huggingface
-#wandb_entity: sft
+#wandb_entity: domain-generalization
 wandb_watch:
-wandb_name: "7b_rs_iter1_bs32_lr_5e-6_pk4096_n3"
+wandb_name: "codegemma-7b-it_bs64_lr5e-6_sft_pack4096"
 #_response_only
 wandb_log_model:
 
@@ -42,16 +42,17 @@ lora_model_dir:
 
 
 
-
 gradient_checkpointing: true
 
 #warmup_ratio: 0.1
-gradient_accumulation_steps: 4
-micro_batch_size: 1
-num_epochs: 2
+gradient_accumulation_steps: 2
+micro_batch_size: 4
+num_epochs: 4
 optimizer: paged_adamw_32bit
+#adiamw_torch_fused
 lr_scheduler: cosine
 learning_rate: 5.e-6
+
 
 weight_decay: 0.0
 max_grad_norm: 1.0
@@ -72,8 +73,8 @@ flash_attention: true
 eval_steps:
 eval_table_size:
 eval_table_max_new_tokens:
-save_steps: 99999
-save_strategy: "steps"
+#save_steps: 100
+save_strategy: "epoch"
 save_total_limit: 4
 debug:
 
@@ -84,4 +85,3 @@ deepspeed: #deepspeed/zero1.json # multi-gpu only
 fsdp:
 fsdp_config:
 special_tokens:
-
