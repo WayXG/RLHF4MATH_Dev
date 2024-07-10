@@ -1,3 +1,6 @@
+# The evaluator is adapted from the ToRA project
+# https://github.com/microsoft/ToRA
+# ToRA authors: Zhibin Gou and Zhihong Shao and Yeyun Gong and yelong shen and Yujiu Yang and Minlie Huang and Nan Duan and Weizhu Chen
 
 import argparse
 import numpy as np
@@ -51,7 +54,7 @@ def evaluate(data_name, prompt_type, samples: list=None, file_path: str=None, ma
     timeout_cnt = 0 
 
     with ProcessPool() as pool:
-        future = pool.map(math_equal_process, params, timeout=3)
+        future = pool.map(math_equal_process, params, timeout=10)
         iterator = future.result()
         with tqdm(total=len(samples), desc="Evaluate") as progress_bar:
             while True:
