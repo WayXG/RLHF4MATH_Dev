@@ -1,8 +1,21 @@
 """
-This script support vllm batch inference with cot/pal/tora prompt.
-Also sopport inference of fine-tuned models like WizardMath/ToRA.
-Code based on: https://github.com/microsoft/ProphetNet/tree/master/CRITIC
+This script support vllm inference and interactions with python interpreter.
+The problem solving is formulated as a multi-turn chat task. For instance, we use the mistral model as an example.
+
+Initially, the user prompt the model to solve a problem by:
+
+<s> [INST] Tony loved to solve difficult pen and paper puzzles.  He did a warm-up puzzle that only took 10 minutes and after that he did 2 puzzles that each took 3 times as long.  How long did he spend solving puzzles? [/INST]
+
+In response to the prompt, the model may generate some reasoning and code. If we detect the python code wrapped in ```python and ```, we run the code, get the returned message, and return the message as a user turn response to the model.
+
+The process repeats for at most H rounds or stops if the model outputs the final answer wrapped in \\boxed. An example is as follows, where we process the chat into the standard format and omit some code.
+
+[ { "content": "Tony loved to solve difficult pen and paper puzzles. He did a warm-up puzzle that only took 10 minutes and after that he did 2 puzzles that each took 3 times as long. How long did he spend solving puzzles?", "role": "user" }, 
+{ "content": "Let's solve this problem using Python's sympy library.\n```python\nimport sympy as sp\n\n# let's denote time in minutes spent on solving puzzle\ntime_spent_on_warmup = 10\n .... time_spent_on_puzzle_1\ntime_spent_on_puzzles\n```", "role": "assistant" }, 
+{ "content": "```output\n70\n```", "role": "user" }, 
+{ "content": "Thus Tony spent \\boxed{70} minutes on solving puzzles.", "role": "assistant" } ]
 """
+
 import random
 import os
 import argparse
@@ -28,14 +41,17 @@ def parse_args():
     parser.add_argument("--split", default="test", type=str)
     parser.add_argument("--num_test_sample", default=-1, type=int) # -1 for full data
     parser.add_argument("--seed", default=0, type=int)
-    parser.add_argument("--start", default=0, type=int)
-    parser.add_argument("--end", default=-1, type=int)
     parser.add_argument("--temperature", default=0, type=float)
     parser.add_argument("--n_sampling", default=1, type=int)
     parser.add_argument("--top_p", default=1, type=float)
     parser.add_argument("--max_tokens_per_call", default=1024, type=int)
     parser.add_argument("--shuffle", action="store_true")
     parser.add_argument("--use_train_prompt_format", default=True, action="store_true")
+    parser.add_argument("--ports", default=["8000", "8001", "8002", "8003", "8004", "8005", "8006", "8007"])
+    parser.add_argument("--stop_tokens", default=['<end_of_turn>',"<eos>", "```output", '<start_of_turn>'])
+    parser.add_argument("--answer_split", default='<start_of_turn>model\n')
+
+
     args = parser.parse_args()
     args.top_p = 1 if args.temperature == 0 else args.top_p # top_p must be 1 when using greedy sampling (vllm)
     return args
@@ -44,7 +60,6 @@ def parse_args():
 
 
 def prepare_data(args):
-    #examples = load_data(args.data_name, args.split, args.data_dir)
     ds = load_dataset(args.data_name, split='train')
     examples = [sample for sample in ds]
     print(examples[0], len(examples))
@@ -59,16 +74,11 @@ def prepare_data(args):
         random.seed(datetime.now().timestamp())
         random.shuffle(examples)
 
-    # select start and end
-    if args.end == -1:
-        args.end = len(examples)
-    examples = examples[args.start:args.end]
-
     # get out_file name
     dt_string = datetime.now().strftime("%m-%d_%H-%M")
     model_name = "/".join(args.model_name_or_path.split("/")[-2:])
     out_file_prefix = f'{args.split}_{args.prompt_type}_{args.num_test_sample}_seed{args.seed}_t{args.temperature}'
-    out_file = f'{args.output_dir}/{model_name}/{args.data_name}/{out_file_prefix}_s{args.start}_e{args.end}_{dt_string}.jsonl'
+    out_file = f'{args.output_dir}/{model_name}/{args.data_name}/{out_file_prefix}_s_{dt_string}.jsonl'
     os.makedirs(f'{args.output_dir}/{model_name}/{args.data_name}', exist_ok=True)
 
     # load all processed samples
@@ -86,42 +96,25 @@ def prepare_data(args):
     # if example has been inferenced...
     # we can prepare a xx_idxs to control the data to be inferenced...
     examples = [example for example in examples if example['idx'] not in processed_idxs]
-    print(f"Idx {args.start} - {args.end}: Remain {len(examples)}/{total_examples} samples.")
     if len(examples) == 0:
         pass
     else:
         print(examples[0])
     return examples, processed_samples, out_file
 
-def checker(gt, result):
-    return True
-    try:
-        if abs(float(gt) - float(result)) < 0.01:
-            return True
-    except:
-        pass
-    if gt == result:
-        return True
-    return False
+
 
 
 def main(args):
-    ports = ["8000", "8001", "8002", "8003", "8004", "8005", "8006", "8007"]
+    ports = args.ports
     examples, processed_samples, out_file = prepare_data(args)
 
     # init python executor
-    if "pal" in args.prompt_type:
-        executor = PythonExecutor(get_answer_expr='solution()')
-    else:
-        executor = PythonExecutor(get_answer_from_stdout=True)
-    print(args.prompt_type, args.use_train_prompt_format)
-    #return 0
-    #print(SamplingParams)
+    executor = PythonExecutor(get_answer_from_stdout=True)
     SamplingParams.seed = args.seed
-    # load model and determine the number of gpus used 
+    
+    # The model is registered as a server externally, we determine the sampling parameters here
     if len(examples) > 0:
-    #    available_gpus = os.environ['CUDA_VISIBLE_DEVICES'].split(',')
-    #    llm = LLM(model=args.model_name_or_path, tensor_parallel_size=len(available_gpus), seed=args.seed)
         default_args = {
             "use_beam_search": False,
             "n": 1,
@@ -130,8 +123,10 @@ def main(args):
             "seed": args.seed,
             "top_p": 1.0,
             "top_k": -1,
-            "stop":['<end_of_turn>',"<eos>", "```output", '<start_of_turn>']# ["</s>", "```output"]
+            "stop": args.stop_tokens #['<end_of_turn>',"<eos>", "```output", '<start_of_turn>']
         }
+    
+
 
     def query_model(prompt, args, port):
         json = {
@@ -145,14 +140,11 @@ def main(args):
 
     samples = []
 
-    #print(examples[0])
-    #return 0
     for example in tqdm(examples, total=len(examples)):
         idx = example['idx']
 
         # parse question and answer
         example['question'] = parse_question(example, args.data_name)
-        #gt_cot, gt_ans = parse_ground_truth(example, args.data_name)
         gt_cot = ''
         gt_ans = ''
         full_prompt = construct_prompt(args, example)
@@ -183,19 +175,11 @@ def main(args):
 
     max_func_call = 1 if args.prompt_type in ['cot', 'pal'] else 6
 
-    #### if the model stops generation or the model writes some code needed to be executed by the external tool..
-    stop_tokens = ['<end_of_turn>',"<eos>", "```output", '<start_of_turn>']
-
-    if args.prompt_type in ['cot']:
-        stop_tokens.append("\n\n")
-    elif args.prompt_type in ['wizard_zs', 'platypus_fs']:
-        stop_tokens.extend(["Instruction", "Response"])
-
+    ################################################################
     # start inference
-    # measure time use
     start_time = time.time()
     print('The maxmial function call is ', max_func_call)
-    for epoch in range(max_func_call):
+    for epoch in range(max_func_call):  # the model can interact with the external environment for at most max_func_call rounds
         print("=" * 50, "Epoch", epoch)
         current_prompts = remain_prompts
         # if all the queries meet the stop criteria, break
@@ -204,15 +188,7 @@ def main(args):
 
         # get all outputs, each prompt is (idx, prompt_content)
         prompts = [item[1] for item in current_prompts]
-        '''
-        outputs = llm.generate(prompts, SamplingParams(
-                        temperature=args.temperature,
-                        top_p=args.top_p,
-                        max_tokens=args.max_tokens_per_call,
-                        n=1,
-                        stop=stop_tokens,
-        ))
-        '''
+
         with ThreadPoolExecutor(512) as executor2:
             result = [
                 executor2.submit(query_model, prompts[i], default_args, ports[i % len(ports)]) for i in range(len(prompts))
@@ -222,16 +198,6 @@ def main(args):
                 pass
 
             outputs = [r.result()[0] for r in result]
-
-        #outputs = sorted(outputs, key=lambda x: int(x.request_id)) # sort outputs by request_id
-        #outputs = [output.outputs[0].text for output in outputs]
-        print(len(outputs), len(current_prompts))
-
-        if len(outputs) != len(current_prompts):
-            outputs = ["boxed VLLM has some problem, this example is not valid XXX!" for i in range(len(current_prompts))]
-
-
-        #assert len(outputs) == len(current_prompts)
 
         # process all outputs
         remain_prompts = []
@@ -271,16 +237,6 @@ def main(args):
             # for pot, there is only one round and we use the output of the code as the final answer
             if "pal" in args.prompt_type:
                 exec_result = "\\boxed{" + exec_result + "}"
-            # for tora format, we add the observation to the history
-            #####
-            #<|user|>\n{example['question']}\n<|assistant|>\n
-            #if 'error' in exec_result:
-            #    exec_result = f"\n<|user|>\n```output\n{exec_result} The result is not correct.\n```\n<|assistant|>\n"
-            #elif not checker(all_gts[i], exec_result):
-            #    exec_result = f"\n<|user|>\n```output\n{exec_result} The result is not correct.\n```\n<|assistant|>\n"
-            #else:
-                #print("zz")
-            #exec_result = f"<end_of_turn>\n<eos><start_of_turn>user\n```output\n{exec_result}\n```<end_of_turn>\n<start_of_turn>model\n"
             exec_result = f"<end_of_turn>\n<start_of_turn>user\n```output\n{exec_result}\n```<end_of_turn>\n<start_of_turn>model\n"
             query += exec_result
             #print(query)
@@ -288,21 +244,14 @@ def main(args):
             if epoch == max_func_call - 1:
                 query += "\nReach max function call limit."
             remain_prompts[k] = (i, query)
-
+    ################################################################
     # unsolved samples
     print("Unsolved samples:", len(remain_prompts))
     end_prompts.extend(remain_prompts)
     # sort by idx
     end_prompts = sorted(end_prompts, key=lambda x: x[0])
-    ans_split = "<start_of_turn>model\n" if args.use_train_prompt_format else "Question:"
-    #print(end_prompts[0], "\n\n\n")
-    #print(end_prompts[1], "\n\n\n")
-    #print(end_prompts[2], "\n\n\n")
+    ans_split = args.answer_split
     codes = [prompt.split(ans_split)[-1].strip() for _, prompt in end_prompts]
-    #print(codes[0], "\n\n\n")
-    #print(codes[1], "\n\n\n")
-    #print(codes[2], "\n\n\n")
-    # only one round, code = ```python some code ``` and ```output: the output``` and also the final result with box...
 
     # extract preds
     # run_execute will extract the code needed to run...
@@ -327,14 +276,6 @@ def main(args):
     # add processed samples
     all_samples.extend(processed_samples)
     save_jsonl(all_samples, out_file)
-
-    #result_str = evaluate(samples=all_samples, data_name=args.data_name, prompt_type=args.prompt_type, execute=True)
-    #result_str += f"\nTime use: {time_use:.2f}s"
-    #time_str = f"{int(time_use // 60)}:{int(time_use % 60):02d}"
-    #result_str += f"\nTime use: {time_str}"
-
-    #with open(out_file.replace(".jsonl", f"_{args.prompt_type}.metrics"), "w") as f:
-    #    f.write(result_str)
 
 if __name__ == "__main__":
     args = parse_args()
