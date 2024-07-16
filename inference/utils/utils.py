@@ -66,27 +66,23 @@ def load_prompt(data_name, prompt_type):
     return prompt
 
 def construct_prompt(args, example):
-    # The current prompt is specialized for Gemma.
+    if args.prompt_type == 'tora':
+        if 'gemma' in args.model_name_or_path: 
+            full_prompt = f"<bos><start_of_turn>user\n{example['question']}<end_of_turn>\n<start_of_turn>model\n"
+        elif "mistral" in args.model_name_or_path:
+            full_prompt = f"<s> [INST] {example['question']} [/INST]"
+        else:
+            raise NotImplementedError(args.prompt_type)
+    elif args.prompt_type == 'cot':
+        if 'gemma' in args.model_name_or_path: 
+            full_prompt = f"<bos><start_of_turn>user\n{example['question']}<end_of_turn>\n<start_of_turn>model\n"
+        elif "mistral" in args.model_name_or_path:
+            full_prompt = f"<s> [INST] {example['question']} [/INST]"
+        else:
+            raise NotImplementedError(args.prompt_type)
     
-    # to enable in-context learning, we change demo_prompt
-    # for now, in context learning is deactivated.
-    # demo_prompt = load_prompt(args.data_name, args.prompt_type)
-    
-    demo_prompt = ""
-    if args.use_train_prompt_format:
-        context = f"<bos><start_of_turn>user\n{example['question']}<end_of_turn>\n<start_of_turn>model\n"
-        full_prompt = demo_prompt + context
-    elif "tora" in args.prompt_type:
-        context = f"<bos><start_of_turn>user\n{example['question']}<end_of_turn>\n<start_of_turn>model\n"
-        full_prompt = demo_prompt + context
-    elif args.prompt_type in ["direct", "cot"]:
-        context = f"Question: {example['question']}\nAnswer:"
-        full_prompt = demo_prompt + context
-    elif args.prompt_type == "pal":
-        context = f"Question: {example['question']}"
-        full_prompt = demo_prompt + context
-    else:
-        raise NotImplementedError(args.prompt_type)
+    x = f"<bos><start_of_turn>user\n Your task is to solve the following mathematical problem. You are allowed to call the Python interpreter to run your code. To do so, write your code starting with ```python and ending with ```end. The result of code execution will then be provided starting with ```output and ending with ```. Also make sure to put your final answer (and only answer) inside \\boxed{{}}. Here is the problem: {example['question']}<end_of_turn>\n<start_of_turn>model\n"   
+        
     return full_prompt
 
 key_map = {
