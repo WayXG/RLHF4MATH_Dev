@@ -7,7 +7,7 @@ MODEL_NAME_OR_PATH=$1
 
 # DATA_LIST = ['math', 'gsm8k', 'gsm-hard', 'svamp', 'tabmwp', 'asdiv', 'mawps']
 
-DATA_NAME="math"
+DATA_NAME="gsm8k"
 
 OUTPUT_DIR="./output1"
 
@@ -31,10 +31,10 @@ python -um eval_infer.eval \
 --start 0 \
 --end -1 \
 
-DATA_NAME="gsm8k"
+DATA_NAME="math"
 
 CUDA_VISIBLE_DEVICES=0 TOKENIZERS_PARALLELISM=false \
-python -um infer.infer_api_gemma \
+python -um eval_infer.eval \
 --model_name_or_path ${MODEL_NAME_OR_PATH} \
 --data_name ${DATA_NAME} \
 --output_dir ${OUTPUT_DIR} \
