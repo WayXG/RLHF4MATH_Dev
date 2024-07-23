@@ -199,6 +199,7 @@ except Exception:
     }}
 print(json.dumps(to_return))
 """
+            all_processed_codes.append(z)
         my_results = self.old_batch_apply(all_processed_codes)
         # Extract the old result
         batch_results = []
