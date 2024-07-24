@@ -47,42 +47,27 @@ def lower_keys(example):
     return new_example 
 
 
-def load_prompt(data_name, prompt_type):
-    if data_name in ['gsm-hard', 'svamp', 'tabmwp', 'asdiv', 'mawps']:
-        data_name = "gsm8k"
-    if data_name in ['math-oai']:
-        data_name = "math"
-    if prompt_type in ['platypus_fs', 'wizard_zs']:
-        prompt_type = "cot"
-    prompt_path = "./prompts/{}/{}.md".format(prompt_type, data_name)
-    if not os.path.exists(prompt_path):
-        prompt_path = "./prompts/{}.md".format(prompt_type)
-    if os.path.exists(prompt_path):
-        with open(prompt_path, 'r', encoding='utf-8') as fp:
-            prompt = fp.read().strip() + "\n\n"
-    else:
-        print(f"Error: prompt file {prompt_path} not found")
-        prompt = ""
-    return prompt
-
 def construct_prompt(args, example):
     if args.prompt_type == 'tora':
         if 'gemma' in args.model_name_or_path: 
             full_prompt = f"<bos><start_of_turn>user\n{example['question']}<end_of_turn>\n<start_of_turn>model\n"
         elif "mistral" in args.model_name_or_path:
             full_prompt = f"<s> [INST] {example['question']} [/INST]"
+        elif "deepseek" in args.model_name_or_path:
+            full_prompt = f"<｜begin▁of▁sentence｜>User: {example['question']}\nPlease integrate natural language reasoning with programs to solve the problem above, and put your final answer within \\boxed{{}}.\n\nAssistant: "
         else:
-            raise NotImplementedError(args.prompt_type)
+            raise NotImplementedError(args.prompt_type + "and " + args.model_name_or_path)
     elif args.prompt_type == 'cot':
+        #### TO DO
         if 'gemma' in args.model_name_or_path: 
-            full_prompt = f"<bos><start_of_turn>user\n{example['question']}<end_of_turn>\n<start_of_turn>model\n"
+            full_prompt = f"<bos><start_of_turn>user\n{example['question']}\nPlease reason step by step, and put your final answer within \\boxed{{}}.<end_of_turn>\n<start_of_turn>model\n"
         elif "mistral" in args.model_name_or_path:
-            full_prompt = f"<s> [INST] {example['question']} [/INST]"
+            full_prompt = f"<s> [INST] {example['question']}\nPlease reason step by step, and put your final answer within \\boxed{{}}. [/INST]"
+        elif "deepseek" in args.model_name_or_path:
+            full_prompt = f"<｜begin▁of▁sentence｜>User: {example['question']}\nPlease reason step by step, and put your final answer within \\boxed{{}}.\n\nAssistant: "
         else:
-            raise NotImplementedError(args.prompt_type)
-    
-    x = f"<bos><start_of_turn>user\n Your task is to solve the following mathematical problem. You are allowed to call the Python interpreter to run your code. To do so, write your code starting with ```python and ending with ```end. The result of code execution will then be provided starting with ```output and ending with ```. Also make sure to put your final answer (and only answer) inside \\boxed{{}}. Here is the problem: {example['question']}<end_of_turn>\n<start_of_turn>model\n"   
-        
+            raise NotImplementedError(args.prompt_type + "and " + args.model_name_or_path)
+            
     return full_prompt
 
 key_map = {
