@@ -54,7 +54,7 @@ def construct_prompt(args, example):
         elif "mistral" in args.model_name_or_path:
             full_prompt = f"<s> [INST] {example['question']} [/INST]"
         elif "deepseek" in args.model_name_or_path:
-            full_prompt = f"<｜begin▁of▁sentence｜>User: {example['question']}\nPlease integrate natural language reasoning with programs to solve the problem above, and put your final answer within \\boxed{{}}.\n\nAssistant: "
+            full_prompt = f"User: {example['question']}\nPlease integrate natural language reasoning with programs to solve the problem above, and put your final answer within \\boxed{{}}.\n\nAssistant: "
         else:
             raise NotImplementedError(args.prompt_type + "and " + args.model_name_or_path)
     elif args.prompt_type == 'cot':
@@ -64,7 +64,7 @@ def construct_prompt(args, example):
         elif "mistral" in args.model_name_or_path:
             full_prompt = f"<s> [INST] {example['question']}\nPlease reason step by step, and put your final answer within \\boxed{{}}. [/INST]"
         elif "deepseek" in args.model_name_or_path:
-            full_prompt = f"<｜begin▁of▁sentence｜>User: {example['question']}\nPlease reason step by step, and put your final answer within \\boxed{{}}.\n\nAssistant: "
+            full_prompt = f"User: {example['question']}\nPlease reason step by step, and put your final answer within \\boxed{{}}.\n\nAssistant: "
         else:
             raise NotImplementedError(args.prompt_type + "and " + args.model_name_or_path)
             
