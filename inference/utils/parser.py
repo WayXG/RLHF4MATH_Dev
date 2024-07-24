@@ -229,7 +229,8 @@ def extract_program(result: str, last_only=False):
     start = False
     program = ""
     for line in result.split("\n"):
-        if line.startswith("```python"):
+        #if line.startswith("```python"):
+        if "```python" in line:
             program = ""
             #if last_only:
             #    program = "" # only extract the last program
