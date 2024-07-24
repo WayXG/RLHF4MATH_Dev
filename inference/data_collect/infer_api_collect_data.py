@@ -1,21 +1,8 @@
 """
-This script support vllm inference and interactions with python interpreter.
-The problem solving is formulated as a multi-turn chat task. For instance, we use the mistral model as an example.
-
-Initially, the user prompt the model to solve a problem by:
-
-<s> [INST] Tony loved to solve difficult pen and paper puzzles.  He did a warm-up puzzle that only took 10 minutes and after that he did 2 puzzles that each took 3 times as long.  How long did he spend solving puzzles? [/INST]
-
-In response to the prompt, the model may generate some reasoning and code. If we detect the python code wrapped in ```python and ```, we run the code, get the returned message, and return the message as a user turn response to the model.
-
-The process repeats for at most H rounds or stops if the model outputs the final answer wrapped in \\boxed. An example is as follows, where we process the chat into the standard format and omit some code.
-
-[ { "content": "Tony loved to solve difficult pen and paper puzzles. He did a warm-up puzzle that only took 10 minutes and after that he did 2 puzzles that each took 3 times as long. How long did he spend solving puzzles?", "role": "user" }, 
-{ "content": "Let's solve this problem using Python's sympy library.\n```python\nimport sympy as sp\n\n# let's denote time in minutes spent on solving puzzle\ntime_spent_on_warmup = 10\n .... time_spent_on_puzzle_1\ntime_spent_on_puzzles\n```", "role": "assistant" }, 
-{ "content": "```output\n70\n```", "role": "user" }, 
-{ "content": "Thus Tony spent \\boxed{70} minutes on solving puzzles.", "role": "assistant" } ]
+This script support vllm batch inference with cot/pal/tora prompt.
+Also sopport inference of fine-tuned models like WizardMath/ToRA.
+Code based on: https://github.com/microsoft/ProphetNet/tree/master/CRITIC
 """
-
 import random
 import os
 import argparse
@@ -30,7 +17,7 @@ from utils.parser import *
 from utils.data_loader import load_data
 from utils.python_executor import PythonExecutor
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datasets import load_dataset
+
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--data_name", default="gsm8k", type=str)
@@ -41,20 +28,18 @@ def parse_args():
     parser.add_argument("--split", default="test", type=str)
     parser.add_argument("--num_test_sample", default=-1, type=int) # -1 for full data
     parser.add_argument("--seed", default=0, type=int)
+    parser.add_argument("--start", default=0, type=int)
+    parser.add_argument("--end", default=-1, type=int)
     parser.add_argument("--temperature", default=0, type=float)
     parser.add_argument("--n_sampling", default=1, type=int)
     parser.add_argument("--top_p", default=1, type=float)
     parser.add_argument("--max_tokens_per_call", default=1024, type=int)
     parser.add_argument("--shuffle", action="store_true")
-    parser.add_argument("--use_train_prompt_format", default=True, action="store_true")
-    parser.add_argument("--ports", default=["8000", "8001", "8002", "8003", "8004", "8005", "8006", "8007"])
-    parser.add_argument("--stop_tokens", default=['<end_of_turn>',"<eos>", "```output", '<start_of_turn>'])
-    parser.add_argument("--answer_split", default='<start_of_turn>model\n')
-
-
+    parser.add_argument("--ports", default=["8008", "8001", "8002", "8003", "8004", "8005", "8006", "8007"])
     args = parser.parse_args()
     args.top_p = 1 if args.temperature == 0 else args.top_p # top_p must be 1 when using greedy sampling (vllm)
     return args
+
 
 
 
@@ -104,18 +89,28 @@ def prepare_data(args):
 
 
 
-
 def main(args):
     ports = args.ports
     examples, processed_samples, out_file = prepare_data(args)
 
     # init python executor
-    executor = PythonExecutor(get_answer_from_stdout=True)
+    if "pal" in args.prompt_type:
+        executor = PythonExecutor(get_answer_expr='solution()')
+    else:
+        executor = PythonExecutor(get_answer_from_stdout=True)
+    print(args.prompt_type)
+
     SamplingParams.seed = args.seed
-    
-    # The model is registered as a server externally, we determine the sampling parameters here
-    if len(examples) > 0:
-        default_args = {
+    # load model and determine the number of gpus used 
+    if 'gemma' in args.model_name_or_path: 
+        stop_tokens = ['<end_of_turn>', "<eos>", "```output", '<start_of_turn>']
+    elif "mistral" in args.model_name_or_path:
+        stop_tokens = ['<s>', '</s>', '[INST]', "```output"]
+    elif "deepseek" in args.model_name_or_path:
+        stop_tokens = ['<｜end▁of▁sentence｜>', 'User', "```output"] 
+    else:
+        raise NotImplementedError(args.prompt_type + "and " + args.model_name_or_path)
+    default_args = {
             "use_beam_search": False,
             "n": 1,
             "temperature": args.temperature,
@@ -123,10 +118,8 @@ def main(args):
             "seed": args.seed,
             "top_p": 1.0,
             "top_k": -1,
-            "stop": args.stop_tokens #['<end_of_turn>',"<eos>", "```output", '<start_of_turn>']
+            "stop": stop_tokens
         }
-    
-
 
     def query_model(prompt, args, port):
         json = {
@@ -163,9 +156,9 @@ def main(args):
         print("sample:", samples[0]['prompt'])
         print("-" * 50)
 
-    # repeat n times
+    # repeat H times
     remain_prompts = [sample['prompt'] for sample in samples for _ in range(args.n_sampling)]
-    remain_prompts = [(i, prompt) for i, prompt in enumerate(remain_prompts)]#[:100]
+    remain_prompts = [(i, prompt) for i, prompt in enumerate(remain_prompts)]
     all_gts = [sample['gt'] for sample in samples for _ in range(args.n_sampling)]
 
     tmp_idx = list(range(len(all_gts)))
@@ -175,11 +168,10 @@ def main(args):
 
     max_func_call = 1 if args.prompt_type in ['cot', 'pal'] else 6
 
-    ################################################################
-    # start inference
+    # start inference, measure time use
     start_time = time.time()
     print('The maxmial function call is ', max_func_call)
-    for epoch in range(max_func_call):  # the model can interact with the external environment for at most max_func_call rounds
+    for epoch in range(max_func_call):
         print("=" * 50, "Epoch", epoch)
         current_prompts = remain_prompts
         # if all the queries meet the stop criteria, break
@@ -188,7 +180,6 @@ def main(args):
 
         # get all outputs, each prompt is (idx, prompt_content)
         prompts = [item[1] for item in current_prompts]
-
         with ThreadPoolExecutor(512) as executor2:
             result = [
                 executor2.submit(query_model, prompts[i], default_args, ports[i % len(ports)]) for i in range(len(prompts))
@@ -198,6 +189,13 @@ def main(args):
                 pass
 
             outputs = [r.result()[0] for r in result]
+
+        #print(len(outputs), len(current_prompts))
+
+        if len(outputs) != len(current_prompts):
+            raise ValueError("VLLM has some problem, the generated responsess are less than the queries.")
+            
+
 
         # process all outputs
         remain_prompts = []
@@ -217,14 +215,11 @@ def main(args):
                 # for cot, the prompt ends for one round
                 end_prompts.append((i, query))
             elif ("boxed" not in output and output.endswith("```")):
-                #print("i am here11")
                 # the model does not output the final answer, meanwhile, a code needs to be executed
                 program = extract_program(query)
                 remain_prompts.append((i, query))
                 remain_codes.append(program)
-                #print(program)
             else:
-                # the model outputs the final answer..
                 end_prompts.append((i, query))
 
         # execute the codes and get the results
@@ -237,34 +232,51 @@ def main(args):
             # for pot, there is only one round and we use the output of the code as the final answer
             if "pal" in args.prompt_type:
                 exec_result = "\\boxed{" + exec_result + "}"
-            exec_result = f"<end_of_turn>\n<start_of_turn>user\n```output\n{exec_result}\n```<end_of_turn>\n<start_of_turn>model\n"
+            # for tora format, we add the observation to the history
+            if 'gemma' in args.model_name_or_path: 
+                exec_result = f"<end_of_turn>\n<start_of_turn>user\n```output\n{exec_result}\n```<end_of_turn>\n<start_of_turn>model\n"
+            elif "mistral" in args.model_name_or_path:
+                exec_result = f"</s> [INST] ```output\n{exec_result}\n``` [/INST]" 
+            elif "deepseek" in args.model_name_or_path:
+                exec_result = f"<｜end▁of▁sentence｜>User: ```output\n{exec_result}\n```\n\nAssistant:" 
+            else:
+                raise NotImplementedError(args.prompt_type + "and " + args.model_name_or_path)
+
             query += exec_result
-            #print(query)
-            # not end
+   
             if epoch == max_func_call - 1:
                 query += "\nReach max function call limit."
             remain_prompts[k] = (i, query)
-    ################################################################
+
     # unsolved samples
     print("Unsolved samples:", len(remain_prompts))
     end_prompts.extend(remain_prompts)
     # sort by idx
     end_prompts = sorted(end_prompts, key=lambda x: x[0])
-    ans_split = args.answer_split
+
+    if 'gemma' in args.model_name_or_path: 
+        ans_split = "<start_of_turn>model\n"
+    elif "mistral" in args.model_name_or_path:
+        ans_split = "[/INST]"
+    elif "deepseek" in args.model_name_or_path:
+        ans_split = "\n\nAssistant:"
+    else:
+        raise NotImplementedError(args.prompt_type + "and " + args.model_name_or_path)
+
+ 
     codes = [prompt.split(ans_split)[-1].strip() for _, prompt in end_prompts]
 
-    # extract preds
-    # run_execute will extract the code needed to run...
+
+    # extract preds, run_execute will extract the code needed to run...
     # for tora, we only extract the final answer but do not run the code
     results = [run_execute(executor, code, args.prompt_type) for code in codes]
-    #results = [run_execute(executor, code, 'tora') for code in codes]
+
     time_use = time.time() - start_time
     tmp_to_store = [z.split("---")[-1].strip() for _, z in end_prompts]
     # put results back to examples
     all_samples = []
     for i, sample in enumerate(samples):
         code = codes[i*args.n_sampling: (i+1)*args.n_sampling]
-       # code = end_prompts[i:(i+1)]
         result = results[i*args.n_sampling: (i+1)*args.n_sampling]
         preds = [item[0] for item in result]
         reports = [item[1] for item in result]
