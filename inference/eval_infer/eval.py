@@ -35,7 +35,7 @@ def parse_args():
     parser.add_argument("--top_p", default=1, type=float)
     parser.add_argument("--max_tokens_per_call", default=1024, type=int)
     parser.add_argument("--shuffle", action="store_true")
-    parser.add_argument("--use_train_prompt_format", default=True, action="store_true")
+    parser.add_argument("--ports", default=["8008", "8001", "8002", "8003", "8004", "8005", "8006", "8007"])
     args = parser.parse_args()
     args.top_p = 1 if args.temperature == 0 else args.top_p # top_p must be 1 when using greedy sampling (vllm)
     return args
@@ -92,20 +92,11 @@ def prepare_data(args):
         print(examples[0])
     return examples, processed_samples, out_file
 
-def checker(gt, result):
-    return True
-    try:
-        if abs(float(gt) - float(result)) < 0.01:
-            return True
-    except:
-        pass
-    if gt == result:
-        return True
-    return False
+
 
 
 def main(args):
-    ports = ["8000", "8001", "8002", "8003", "8004", "8005", "8006", "8007"]
+    ports = args.ports
     examples, processed_samples, out_file = prepare_data(args)
 
     # init python executor
@@ -113,15 +104,19 @@ def main(args):
         executor = PythonExecutor(get_answer_expr='solution()')
     else:
         executor = PythonExecutor(get_answer_from_stdout=True)
-    print(args.prompt_type, args.use_train_prompt_format)
-    #return 0
-    #print(SamplingParams)
+    print(args.prompt_type)
+
     SamplingParams.seed = args.seed
     # load model and determine the number of gpus used 
-    if len(examples) > 0:
-    #    available_gpus = os.environ['CUDA_VISIBLE_DEVICES'].split(',')
-    #    llm = LLM(model=args.model_name_or_path, tensor_parallel_size=len(available_gpus), seed=args.seed)
-        default_args = {
+    if 'gemma' in args.model_name_or_path: 
+        stop_tokens = ['<end_of_turn>', "<eos>", "```output", '<start_of_turn>']
+    elif "mistral" in args.model_name_or_path:
+        stop_tokens = ['<s>', '</s>', '[INST]', "```output"]
+    elif "deepseek" in args.model_name_or_path:
+        stop_tokens = ['<｜end▁of▁sentence｜>', 'User', "```output"] 
+    else:
+        raise NotImplementedError(args.prompt_type + "and " + args.model_name_or_path)
+    default_args = {
             "use_beam_search": False,
             "n": 1,
             "temperature": args.temperature,
@@ -129,7 +124,7 @@ def main(args):
             "seed": args.seed,
             "top_p": 1.0,
             "top_k": -1,
-            "stop":['<end_of_turn>',"<eos>", "```output", '<start_of_turn>']# ["</s>", "```output"]
+            "stop": stop_tokens
         }
 
     def query_model(prompt, args, port):
@@ -144,8 +139,6 @@ def main(args):
 
     samples = []
 
-    #print(examples[0])
-    #return 0
     for example in tqdm(examples, total=len(examples)):
         idx = example['idx']
 
@@ -169,9 +162,9 @@ def main(args):
         print("sample:", samples[0]['prompt'])
         print("-" * 50)
 
-    # repeat n times
+    # repeat H times
     remain_prompts = [sample['prompt'] for sample in samples for _ in range(args.n_sampling)]
-    remain_prompts = [(i, prompt) for i, prompt in enumerate(remain_prompts)]#[:100]
+    remain_prompts = [(i, prompt) for i, prompt in enumerate(remain_prompts)]
     all_gts = [sample['gt'] for sample in samples for _ in range(args.n_sampling)]
 
     tmp_idx = list(range(len(all_gts)))
@@ -181,16 +174,7 @@ def main(args):
 
     max_func_call = 1 if args.prompt_type in ['cot', 'pal'] else 6
 
-    #### if the model stops generation or the model writes some code needed to be executed by the external tool..
-    stop_tokens = ['<end_of_turn>',"<eos>", "```output", '<start_of_turn>']
-
-    if args.prompt_type in ['cot']:
-        stop_tokens.append("\n\n")
-    elif args.prompt_type in ['wizard_zs', 'platypus_fs']:
-        stop_tokens.extend(["Instruction", "Response"])
-
-    # start inference
-    # measure time use
+    # start inference, measure time use
     start_time = time.time()
     print('The maxmial function call is ', max_func_call)
     for epoch in range(max_func_call):
@@ -202,15 +186,6 @@ def main(args):
 
         # get all outputs, each prompt is (idx, prompt_content)
         prompts = [item[1] for item in current_prompts]
-        '''
-        outputs = llm.generate(prompts, SamplingParams(
-                        temperature=args.temperature,
-                        top_p=args.top_p,
-                        max_tokens=args.max_tokens_per_call,
-                        n=1,
-                        stop=stop_tokens,
-        ))
-        '''
         with ThreadPoolExecutor(512) as executor2:
             result = [
                 executor2.submit(query_model, prompts[i], default_args, ports[i % len(ports)]) for i in range(len(prompts))
@@ -221,15 +196,12 @@ def main(args):
 
             outputs = [r.result()[0] for r in result]
 
-        #outputs = sorted(outputs, key=lambda x: int(x.request_id)) # sort outputs by request_id
-        #outputs = [output.outputs[0].text for output in outputs]
-        print(len(outputs), len(current_prompts))
+        #print(len(outputs), len(current_prompts))
 
         if len(outputs) != len(current_prompts):
-            outputs = ["boxed VLLM has some problem, this example is not valid XXX!" for i in range(len(current_prompts))]
+            raise ValueError("VLLM has some problem, the generated responsess are less than the queries.")
+            
 
-
-        #assert len(outputs) == len(current_prompts)
 
         # process all outputs
         remain_prompts = []
@@ -249,14 +221,11 @@ def main(args):
                 # for cot, the prompt ends for one round
                 end_prompts.append((i, query))
             elif ("boxed" not in output and output.endswith("```")):
-                #print("i am here11")
                 # the model does not output the final answer, meanwhile, a code needs to be executed
                 program = extract_program(query)
                 remain_prompts.append((i, query))
                 remain_codes.append(program)
-                #print(program)
             else:
-                # the model outputs the final answer..
                 end_prompts.append((i, query))
 
         # execute the codes and get the results
@@ -270,19 +239,17 @@ def main(args):
             if "pal" in args.prompt_type:
                 exec_result = "\\boxed{" + exec_result + "}"
             # for tora format, we add the observation to the history
-            #####
-            #<|user|>\n{example['question']}\n<|assistant|>\n
-            #if 'error' in exec_result:
-            #    exec_result = f"\n<|user|>\n```output\n{exec_result} The result is not correct.\n```\n<|assistant|>\n"
-            #elif not checker(all_gts[i], exec_result):
-            #    exec_result = f"\n<|user|>\n```output\n{exec_result} The result is not correct.\n```\n<|assistant|>\n"
-            #else:
-                #print("zz")
-            exec_result = f"<end_of_turn>\n<start_of_turn>user\n```output\n{exec_result}\n```<end_of_turn>\n<start_of_turn>model\n"
+            if 'gemma' in args.model_name_or_path: 
+                exec_result = f"<end_of_turn>\n<start_of_turn>user\n```output\n{exec_result}\n```<end_of_turn>\n<start_of_turn>model\n"
+            elif "mistral" in args.model_name_or_path:
+                exec_result = f"</s> [INST] ```output\n{exec_result}\n``` [/INST]" 
+            elif "deepseek" in args.model_name_or_path:
+                exec_result = f"<｜end▁of▁sentence｜>User: ```output\n{exec_result}\n```\n\nAssistant:" 
+            else:
+                raise NotImplementedError(args.prompt_type + "and " + args.model_name_or_path)
 
             query += exec_result
-            #print(query)
-            # not end
+   
             if epoch == max_func_call - 1:
                 query += "\nReach max function call limit."
             remain_prompts[k] = (i, query)
@@ -292,28 +259,30 @@ def main(args):
     end_prompts.extend(remain_prompts)
     # sort by idx
     end_prompts = sorted(end_prompts, key=lambda x: x[0])
-    ans_split = "<start_of_turn>model\n" if args.use_train_prompt_format else "Question:"
-    #print(end_prompts[0], "\n\n\n")
-    #print(end_prompts[1], "\n\n\n")
-    #print(end_prompts[2], "\n\n\n")
-    codes = [prompt.split(ans_split)[-1].strip() for _, prompt in end_prompts]
-    #print(codes[0], "\n\n\n")
-    #print(codes[1], "\n\n\n")
-    #print(codes[2], "\n\n\n")
-    # only one round, code = ```python some code ``` and ```output: the output``` and also the final result with box...
 
-    # extract preds
-    # run_execute will extract the code needed to run...
+    if 'gemma' in args.model_name_or_path: 
+        ans_split = "<start_of_turn>model\n"
+    elif "mistral" in args.model_name_or_path:
+        ans_split = "[/INST]"
+    elif "deepseek" in args.model_name_or_path:
+        ans_split = "\n\nAssistant:"
+    else:
+        raise NotImplementedError(args.prompt_type + "and " + args.model_name_or_path)
+
+ 
+    codes = [prompt.split(ans_split)[-1].strip() for _, prompt in end_prompts]
+
+
+    # extract preds, run_execute will extract the code needed to run...
     # for tora, we only extract the final answer but do not run the code
     results = [run_execute(executor, code, args.prompt_type) for code in codes]
-    #results = [run_execute(executor, code, 'tora') for code in codes]
+
     time_use = time.time() - start_time
     tmp_to_store = [z.split("---")[-1].strip() for _, z in end_prompts]
     # put results back to examples
     all_samples = []
     for i, sample in enumerate(samples):
         code = codes[i*args.n_sampling: (i+1)*args.n_sampling]
-       # code = end_prompts[i:(i+1)]
         result = results[i*args.n_sampling: (i+1)*args.n_sampling]
         preds = [item[0] for item in result]
         reports = [item[1] for item in result]
