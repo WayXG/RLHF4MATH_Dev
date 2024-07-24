@@ -143,7 +143,7 @@ class PythonExecutor:
                 timeout(timeout_length)(runtime.exec_code)('\n'.join(code[:-1]))
                 result = timeout(timeout_length)(runtime.eval_code)(code[-1])
             report = "Done"
-            str(result)
+            #str(result)
             pickle.dumps(result) # serialization check
         except:
             report = traceback.format_exc().split('\n')[-2]
@@ -173,8 +173,9 @@ from IPython.utils import io
 code_snippets = []
 """
             for code_snippet in code_seq:
-                z += f'\ncode_snippets.append("""{code_snippet}""")\n'
-
+                #z += f'\ncode_snippets.append("""{code_snippet}""")\n'
+                escaped_code_snippet = code_snippet.replace('"""', '\\"\\"\\"')
+                z += f'\ncode_snippets.append("""{escaped_code_snippet}""")\n'
             z += f"""
 try:
     shell = InteractiveShell()
