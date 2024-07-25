@@ -1,4 +1,4 @@
-base_model: /home/wexiong_google_com/wx/sft/RLHF-Reward-Modeling/pair-pm/pm_models/mistral_with_pad
+base_model: ./models/mistral_with_pad
 model_type: AutoModelForCausalLM
 tokenizer_type: AutoTokenizer
 
@@ -15,7 +15,7 @@ datasets:
 
 warmup_steps: 50
 val_set_size: 0.0
-output_dir: ./pm_models/mistral_bz64_5e6_pack4096_1200k
+output_dir: ./models/mistral_bz64_5e6_pack4096_1200k
 wandb_project: huggingface
 #wandb_entity: sft
 wandb_watch:
@@ -77,7 +77,7 @@ debug:
 
 
 ddp: #true
-deepspeed: #deepspeed/zero1.json # multi-gpu only
+deepspeed:
 
 fsdp:
 fsdp_config:
