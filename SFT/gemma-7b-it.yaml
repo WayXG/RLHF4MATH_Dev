@@ -1,4 +1,4 @@
-base_model: google/codegemma-1.1-7b-it
+base_model: google/gemma-1.1-7b-it
 model_type: AutoModelForCausalLM
 tokenizer_type: AutoTokenizer
 
