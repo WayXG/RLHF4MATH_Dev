@@ -2,7 +2,7 @@
 
 TL;DL: this is an implementation of the Online Iterative Direct Preference Learning for Multi-turn Mathematical Reasoning with External Tools.
 
-We consider the math problem solving with python interpreter, which means that the model can write a python code and ask the external environmnet to run and receive the excutaion result, before the LLM makes its next decision.
+We consider the math problem solving with python interpreter, which means that the model can write a python code and ask the external environmnet to execute and receive the excutaion result, before the LLM makes its next decision.
 
 ## Installation instructions
 
