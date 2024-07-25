@@ -1,6 +1,6 @@
 ## Inference for MATH Problem with External Python Intepreter 
 
-In this repo, we implement the MATH problem solving with external python tool using the VLLM package to accelerate infernece.
+In this repo, we implement the MATH problem solving with external python tool using the VLLM to accelerate infernece.
 
 
 ## Installation instructions
