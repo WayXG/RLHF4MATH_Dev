@@ -57,19 +57,19 @@ huggingface-cli login
 Running the code with Gemma.
 
 ```shell
-CUDA_VISIBLE_DEVICES="0,1,2,3" torchrun --nproc_per_node 4 --master_port 20001 -m axolotl.cli.train gemma-2b-it.yaml
+CUDA_VISIBLE_DEVICES="0,1,2,3,4,5,6,7" torchrun --nproc_per_node 8 --master_port 20001 -m axolotl.cli.train gemma-7b-it.yaml
 ```
 
-You can also modify the learning rate, batch size, output_path.. with either command or modify the ScriptArguments in the gemma-2b-it.yml
+You can also modify the learning rate, batch size, output_path.. with either command or modify the ScriptArguments in the gemma-7b-it.yml
 
 If you encounter out-of-memory issue. Running the code with Gemma-2b-it with deepspeed stage 3 and gradient checkpoint (set in the config).
 
 ```shell
-CUDA_VISIBLE_DEVICES="0,1,2,3" torchrun --nproc_per_node 4 --master_port 20001 -m axolotl.cli.train gemma-2b-it.yml --deepspeed sft_ds3.json
+CUDA_VISIBLE_DEVICES="0,1,2,3" torchrun --nproc_per_node 4 --master_port 20001 -m axolotl.cli.train gemma-2b-it.yml --deepspeed ./sft_configs/sft_ds3.json
 ```
 
 **REMARK: note that with deepspeed stage 3, the final mode saving does not work normally. We set the store strategy as epoch so we can store a normal model just before we finish the training for one epoch. If you modify the store stragety, you should set the save_every_steps as the total number of training steps - 1 so that the trainer will save a model for you just before finishing the training.**
 
 
-Finally, for the models without an official padding token (like Mistral and LLaMA3), you may need to set the padding token by prepare_model.py first.
+Finally, for the models without an official padding token (like Mistral), you may need to set the padding token by prepare_model.py first.
 
