@@ -1,22 +1,27 @@
 from datasets import load_dataset
-ds1 = load_dataset('1231czx/7b_sft_510k_3epoch_gen_data_iter1', split='train').shuffle(seed=42)
-ds2 = load_dataset('1231czx/7b_sft_510k_1epoch_gen_data_iter1', split='train').shuffle(seed=42)
-from datasets import Dataset, concatenate_datasets
+from collections import defaultdict
 import multiprocessing
 from math import isclose
 from typing import Union
 
-ds = concatenate_datasets([ds1, ds2])#.select(range(100000))
-#ds = ds.select(range(5000))
-N_pair = 1
-data_comp = '1231czx/7B_iter1_dpo_N1_random_pair'
-data_sft = '1231czx/7B_iter1_sft_N1'
+from datasets import Dataset, concatenate_datasets
 
 from typing import Union
 
-from sympy import simplify, N
-from sympy.parsing.sympy_parser import parse_expr
+from sympy import N, simplify
 from sympy.parsing.latex import parse_latex
+from sympy.parsing.sympy_parser import parse_expr
+
+ds1 = load_dataset("1231czx/7b_sft_510k_3epoch_gen_data_iter1", split="train").shuffle(seed=42)
+ds2 = load_dataset("1231czx/7b_sft_510k_1epoch_gen_data_iter1", split="train").shuffle(seed=42)
+
+ds = concatenate_datasets([ds1, ds2])  # .select(range(100000))
+# ds = ds.select(range(5000))
+N_pair = 1
+data_comp = "1231czx/7B_iter1_dpo_N1_random_pair"
+data_sft = "1231czx/7B_iter1_sft_N1"
+
+
 
 def symbolic_equal(a, b):
     def _parse(s):
@@ -26,11 +31,12 @@ def symbolic_equal(a, b):
             except:
                 pass
         return s
+
     a = _parse(a)
     b = _parse(b)
 
     try:
-        if simplify(a-b) == 0:
+        if simplify(a - b) == 0:
             return True
     except:
         pass
@@ -42,36 +48,40 @@ def symbolic_equal(a, b):
         pass
     return False
 
-def symbolic_equal_process(a, b, output_queue):  
-    result = symbolic_equal(a, b)
-    output_queue.put(result)  
 
-def call_with_timeout(func, *args, timeout=10, **kwargs):  
-    output_queue = multiprocessing.Queue()  
-    process_args = args + (output_queue,)  
-    process = multiprocessing.Process(target=func, args=process_args, kwargs=kwargs)  
-    process.start()  
-    process.join(timeout)  
-                          
-    if process.is_alive():  
-        process.terminate()  
-        process.join()  
-        #return "time out"  
-        return False                                               
+def symbolic_equal_process(a, b, output_queue):
+    result = symbolic_equal(a, b)
+    output_queue.put(result)
+
+
+def call_with_timeout(func, *args, timeout=10, **kwargs):
+    output_queue = multiprocessing.Queue()
+    process_args = args + (output_queue,)
+    process = multiprocessing.Process(target=func, args=process_args, kwargs=kwargs)
+    process.start()
+    process.join(timeout)
+
+    if process.is_alive():
+        process.terminate()
+        process.join()
+        # return "time out"
+        return False
     return output_queue.get()
-                                                  
-def math_equal(prediction: Union[bool, float, str],
-                reference: Union[float, str],
-                include_percentage: bool = True,
-                is_close: bool = True,
-                timeout: bool = True,
-                ) -> bool:
+
+
+def math_equal(
+    prediction: Union[bool, float, str],
+    reference: Union[float, str],
+    include_percentage: bool = True,
+    is_close: bool = True,
+    timeout: bool = True,
+) -> bool:
     """
     Exact match of math if and only if:
     1. numerical equal: both can convert to float and are equal
     2. symbolic equal: both can convert to sympy expression and are equal
     """
-    try: # 1. numerical equal
+    try:  # 1. numerical equal
         if is_digit(prediction) and is_digit(reference):
             prediction = float(str(prediction).replace(",", ""))
             reference = float(str(reference).replace(",", ""))
@@ -102,30 +112,37 @@ def math_equal(prediction: Union[bool, float, str],
 
     ## deal with [], (), {}
     pred_str, ref_str = prediction, reference
-    if (prediction.startswith("[") and prediction.endswith("]") and not reference.startswith("(")) or \
-        (prediction.startswith("(") and prediction.endswith(")") and not reference.startswith("[")):
+    if (prediction.startswith("[") and prediction.endswith("]") and not reference.startswith("(")) or (
+        prediction.startswith("(") and prediction.endswith(")") and not reference.startswith("[")
+    ):
         pred_str = pred_str.strip("[]()")
         ref_str = ref_str.strip("[]()")
-    for s in ['{', "}", "(", ")"]:
+    for s in ["{", "}", "(", ")"]:
         ref_str = ref_str.replace(s, "")
         pred_str = pred_str.replace(s, "")
     if pred_str == ref_str:
         return True
 
     ## [a, b] vs. [c, d], return a==c and b==d
-    if (prediction.startswith("[") and prediction.endswith("]")) and (reference.startswith("[") and reference.endswith("]")) or \
-        (prediction.startswith("(") and prediction.endswith(")")) and (reference.startswith("(") and reference.endswith(")")):
+    if (
+        (prediction.startswith("[") and prediction.endswith("]"))
+        and (reference.startswith("[") and reference.endswith("]"))
+        or (prediction.startswith("(") and prediction.endswith(")"))
+        and (reference.startswith("(") and reference.endswith(")"))
+    ):
         pred_parts = prediction[1:-1].split(",")
         ref_parts = reference[1:-1].split(",")
         if len(pred_parts) == len(ref_parts):
-            if all([math_equal(pred_parts[i], ref_parts[i], include_percentage, is_close) for i in range(len(pred_parts))]):
+            if all(
+                [math_equal(pred_parts[i], ref_parts[i], include_percentage, is_close) for i in range(len(pred_parts))]
+            ):
                 return True
 
     # symbolic equal with sympy
     if timeout:
         if call_with_timeout(symbolic_equal_process, prediction, reference):
             return True
-        #elif tmp == 'time out':
+        # elif tmp == 'time out':
         #    return "time out"
     else:
         if symbolic_equal(prediction, reference):
@@ -149,6 +166,8 @@ def _fix_a_slash_b(string):
         return new_string
     except:
         return string
+
+
 def _fix_fracs(string):
     substrs = string.split("\\frac")
     new_str = substrs[0]
@@ -184,6 +203,7 @@ def _fix_fracs(string):
 def _fix_sqrt(string):
     _string = re.sub(r"\\sqrt(\w+)", r"\\sqrt{\1}", string)
     return _string
+
 
 def strip_string(string):
     string = str(string).strip()
@@ -253,7 +273,7 @@ def strip_string(string):
 
     # quote
     string.replace("'", "")
-    string.replace("\"", "")
+    string.replace('"', "")
 
     # i, j
     if "j" in string and "i" not in string:
@@ -284,11 +304,13 @@ def strip_string(string):
     string = _fix_a_slash_b(string)
 
     return string
+
+
 import re
 
 
 def check1(a, b):
-    
+
     try:
         a = parse_latex(a)
         b = parse_latex(b)
@@ -296,79 +318,92 @@ def check1(a, b):
             return True
     except:
         pass
-    
+
     return False
 
+
 print(check1("0.25", "\\frac{1}{4}"))
+
+
 def parse_ground_truth(example):
     cnt = 0
-    if example['type'] in ["gpt-3.5-turbo", 'MATH_FOBAR', 'GSM_Rephrased', 'MATH_SV', 'MATH_Rephrased', 'GSM_SV', 'GSM_FOBAR']:
+    if example["type"] in [
+        "gpt-3.5-turbo",
+        "MATH_FOBAR",
+        "GSM_Rephrased",
+        "MATH_SV",
+        "MATH_Rephrased",
+        "GSM_SV",
+        "GSM_FOBAR",
+    ]:
         pattern = r"The answer is: (.*?)$"
-        match = re.search(pattern, example['solution'])
+        match = re.search(pattern, example["solution"])
 
         if match:
             gt_ans = match.group(1)
-            #print("The prediction is:", prediction)
+            # print("The prediction is:", prediction)
         else:
             print("No prediction found for gpt-3.5-turbo.")
 
-        check_ans = extract_answer(example['solution'])
+        check_ans = extract_answer(example["solution"])
         if check_ans != gt_ans:
-            #if math_equal(gt_ans, check_ans):
+            # if math_equal(gt_ans, check_ans):
             #    pass
             if check1(gt_ans, check_ans):
                 pass
             else:
-                #print(example['type'], gt_ans, check_ans, "\n")
+                # print(example['type'], gt_ans, check_ans, "\n")
                 cnt += 1
                 gt_ans = "delete"
-    elif example['type'] == 'gsm8k':
-        gt_ans = example['solution'].split("####")[-1]
+    elif example["type"] == "gsm8k":
+        gt_ans = example["solution"].split("####")[-1]
 
-    elif example['type'] == 'math':
-        gt_ans = extract_answer(example['solution'])
+    elif example["type"] == "math":
+        gt_ans = extract_answer(example["solution"])
 
     else:
-        print(example['type'])
+        print(example["type"])
         raise NotImplementedError()
     gt_ans = strip_string(gt_ans)
-    #if gt_ans.startswith('\frac'):
+    # if gt_ans.startswith('\frac'):
     #    gt_ans = '\' + gt_ans
     return {"gt": gt_ans}
 
+
 def extract_answer(pred_str):
-    if 'boxed' in pred_str:
-        ans = pred_str.split('boxed')[-1]
+    if "boxed" in pred_str:
+        ans = pred_str.split("boxed")[-1]
         if len(ans) == 0:
             return ""
-        elif (ans[0] == '{'):
+        elif ans[0] == "{":
             stack = 1
-            a = ''
+            a = ""
             for c in ans[1:]:
-                if (c == '{'):
+                if c == "{":
                     stack += 1
                     a += c
-                elif (c == '}'):
+                elif c == "}":
                     stack -= 1
-                    if (stack == 0): break
+                    if stack == 0:
+                        break
                     a += c
                 else:
                     a += c
         else:
-            a = ans.split('$')[0].strip()
-        pred=a
-    elif ('he answer is' in pred_str):
-        pred = pred_str.split('he answer is')[-1].strip()
+            a = ans.split("$")[0].strip()
+        pred = a
+    elif "he answer is" in pred_str:
+        pred = pred_str.split("he answer is")[-1].strip()
     elif extract_program_output(pred_str) != "":
         # fall back to program
         pred = extract_program_output(pred_str)
-    else: # use the last number
-        pattern = '-?\d*\.?\d+'
+    else:  # use the last number
+        pattern = "-?\d*\.?\d+"
         pred = re.findall(pattern, pred_str.replace(",", ""))
-        if(len(pred) >= 1):
+        if len(pred) >= 1:
             pred = pred[-1]
-        else: pred = ''
-
+        else:
+            pred = ""
 
     # multiple line
     pred = pred.split("\n")[0]
@@ -380,20 +415,22 @@ def extract_answer(pred_str):
         pred = pred[:-1]
     pred = strip_string(pred)
     return pred
+
+
 from sympy.parsing.latex import parse_latex
 
 # Example LaTeX string
 
 z = 0
-#ds = load_dataset('1231czx/7b_sft_510k_3epoch_gen_data_iter1', split='train')
+# ds = load_dataset('1231czx/7b_sft_510k_3epoch_gen_data_iter1', split='train')
 
-#for sample in ds:
+# for sample in ds:
 #    a, b = parse_ground_truth(sample)
 #    z += b
-#print(z)
+# print(z)
 
 ds_new = ds.map(parse_ground_truth, num_proc=32)
-ds_new = ds_new.filter(lambda example: example["gt"]!='delete')
+ds_new = ds_new.filter(lambda example: example["gt"] != "delete")
 
 print("#######################################\n", "After delete the prompts that cannot be verified")
 print(ds_new[0])
@@ -404,60 +441,57 @@ print(ds, ds_new)
 
 import re
 
+
 def parse_conversation(example):
     # Split the data into turns based on the start_of_turn and end_of_turn markers
-    data = example['my_solu'][0]
-    turns = re.split(r'<start_of_turn>|<end_of_turn>', data)
+    data = example["my_solu"][0]
+    turns = re.split(r"<start_of_turn>|<end_of_turn>", data)
 
     # Clean and filter out empty entries
-    turns = [turn.strip() for turn in turns if turn.strip() and not turn.startswith('<eos>')]
+    turns = [turn.strip() for turn in turns if turn.strip() and not turn.startswith("<eos>")]
 
     # Create a list to hold the parsed conversation in the desired format
     conversation = []
 
     # Process each turn, assigning the correct role and content
     for turn in turns:
-        if turn.startswith('user\n'):
+        if turn.startswith("user\n"):
             # Extract content after the role identifier
             content = turn[5:].strip()
             conversation.append({"role": "user", "content": content})
-        elif turn.startswith('model\n'):
+        elif turn.startswith("model\n"):
             content = turn[6:].strip()
             conversation.append({"role": "assistant", "content": content})
 
     return {"messages": conversation}
 
 
-ds_new = ds_new.map(parse_conversation,num_proc=32)
+ds_new = ds_new.map(parse_conversation, num_proc=32)
 
 ##########
-#import signal
+# import signal
 
 # 定义一个超时的异常类
-#class TimeoutException(Exception):
+# class TimeoutException(Exception):
 #    pass
 
 # 超时的处理函数
-#def timeout_handler(signum, frame):
+# def timeout_handler(signum, frame):
 #    raise TimeoutException
 
 # 设置信号和处理函数
-#signal.signal(signal.SIGALRM, timeout_handler)
+# signal.signal(signal.SIGALRM, timeout_handler)
 
 # 设置超时时间（以秒为单位）
-
 
 
 #########
 
 
-
-
 def is_correct(example):
-    cnt = 0
     is_correct_label = False
-    a = example['pred'][0]
-    b = example['gt']
+    a = example["pred"][0]
+    b = example["gt"]
     if a == b:
         is_correct_label = True
         return {"is_correct": is_correct_label}
@@ -467,119 +501,120 @@ def is_correct(example):
             return {"is_correct": is_correct_label}
     except:
         pass
-    
+
     try:
-        #if check1(a, b):
-        #signal.signal(signal.SIGALRM, timeout_handler)
+        # if check1(a, b):
+        # signal.signal(signal.SIGALRM, timeout_handler)
 
         # 设置超时时间（以秒为单位）
-        #timeout_seconds = 1  # 10毫秒
+        # timeout_seconds = 1  # 10毫秒
 
-        #try:
+        # try:
         # 启动计时器
-        #signal.alarm(timeout_seconds)
+        # signal.alarm(timeout_seconds)
 
         if math_equal(a, b):
-        #if z == True:    
+            # if z == True:
             is_correct_label = True
 
             return {"is_correct": is_correct_label}
-        
-        #elif z == 'time out':
+
+        # elif z == 'time out':
         #    print("time out")
         #    return {"is_correct": 'time out'}
-            
-        #signal.alarm(0)
-        #except TimeoutException:
-        #    pass    
-        #if math_equal(a, b):
+
+        # signal.alarm(0)
+        # except TimeoutException:
+        #    pass
+        # if math_equal(a, b):
         #    is_correct_label = True
     except:
         pass
-    
-    '''
+
+    """
     try:
         if check1(a, b):
             is_correct_label = True  
             return {"is_correct": is_correct_label}
     except:
         pass
-    '''
-    #try:
+    """
+    # try:
     #    if math_equal(a, b):
     #        is_correct_label = True
-    #except:
+    # except:
     #        pass
 
-    #print(example['type'])
-    #raise NotImplementedError()
-    #gt_ans = strip_string(gt_ans)
+    # print(example['type'])
+    # raise NotImplementedError()
+    # gt_ans = strip_string(gt_ans)
     return {"is_correct": is_correct_label}
 
-#j = 0
-#for sample in ds_new:
-    #math_equal(sample['gt'], sample['pred'][0])
-    #print(j)
-    #if j == 42879:
-    #    print(sampl
+
+# j = 0
+# for sample in ds_new:
+# math_equal(sample['gt'], sample['pred'][0])
+# print(j)
+# if j == 42879:
+#    print(sampl
 
 
 def filter_example1(example):
-    old_messages = example['messages']
-    
+    old_messages = example["messages"]
+
     if len(old_messages) < 4:
         return False
 
     if len(old_messages) % 2 != 0:
         return False
-    
+
     all_mes_len = len(old_messages)
-    if example['is_correct'] and "error" in old_messages[-2]['content'].lower():
+    if example["is_correct"] and "error" in old_messages[-2]["content"].lower():
         return False
 
-    if 'boxed' in old_messages[-1]['content'].lower() and "error" in old_messages[-2]['content'].lower():
+    if "boxed" in old_messages[-1]["content"].lower() and "error" in old_messages[-2]["content"].lower():
         return False
 
     k = 0
-    
+
     for mes in old_messages:
         if k % 2 != 0 and k < all_mes_len - 1:
-            if 'python' not in mes['content']:
+            if "python" not in mes["content"]:
                 return False
         k += 1
-        if 'ipython' in mes['content'].lower() and 'error' in mes['content'].lower():
+        if "ipython" in mes["content"].lower() and "error" in mes["content"].lower():
             return False
-        if mes['content'] == "```output\nExecution error: \n```":
+        if mes["content"] == "```output\nExecution error: \n```":
             return False
-        if "```output\n[]" in mes['content']:
-            #print(mes['content'])
+        if "```output\n[]" in mes["content"]:
+            # print(mes['content'])
             return False
 
-    
     return True
+
 
 from transformers import AutoTokenizer, HfArgumentParser
 
-
-#ds_new = ds_new.filter(filter_example1, num_proc=32)
+# ds_new = ds_new.filter(filter_example1, num_proc=32)
 
 print("############### Answer check")
-tokenizer = AutoTokenizer.from_pretrained('google/gemma-1.1-7b-it')
-#j = 0
-#for sample in ds_new:
-    #math_equal(sample['gt'], sample['pred'][0])
-    #print(j)
-    #if j == 42879:
-    #    print(sample)
-    #j += 1
+tokenizer = AutoTokenizer.from_pretrained("google/gemma-1.1-7b-it")
+# j = 0
+# for sample in ds_new:
+# math_equal(sample['gt'], sample['pred'][0])
+# print(j)
+# if j == 42879:
+#    print(sample)
+# j += 1
+
 
 def filter_too_long_pred(example):
     try:
-        if len(example['pred'][0]) > 20:
+        if len(example["pred"][0]) > 20:
             return False
     except:
         return False
-    old_messages = example['messages']
+    old_messages = example["messages"]
     if len(old_messages) < 4:
         return False
 
@@ -588,33 +623,31 @@ def filter_too_long_pred(example):
 
     all_mes_len = len(old_messages)
 
-    
-    if 'boxed' in old_messages[-1]['content'].lower() and "error" in old_messages[-2]['content'].lower():
+    if "boxed" in old_messages[-1]["content"].lower() and "error" in old_messages[-2]["content"].lower():
         return False
 
     k = 0
 
     for mes in old_messages:
         if k % 2 != 0 and k < all_mes_len - 1:
-            if 'python' not in mes['content']:
+            if "python" not in mes["content"]:
                 return False
         k += 1
-        if 'ipython' in mes['content'].lower() and 'error' in mes['content'].lower():
+        if "ipython" in mes["content"].lower() and "error" in mes["content"].lower():
             return False
-        if mes['content'] == "```output\nExecution error: \n```":
+        if mes["content"] == "```output\nExecution error: \n```":
             return False
-        if "```output\n[]" in mes['content']:
-            #print(mes['content'])
+        if "```output\n[]" in mes["content"]:
+            # print(mes['content'])
             return False
 
     z = len(tokenizer.apply_chat_template(old_messages, tokenize=True))
     if z > 2048:
         return False
 
-    #b = len(tokenizer.apply_chat_template(ds_test[i]['rejected'], tokenize=True))
+    # b = len(tokenizer.apply_chat_template(ds_test[i]['rejected'], tokenize=True))
 
     return True
-
 
 
 ds_new = ds_new.filter(filter_too_long_pred, num_proc=32)
@@ -624,38 +657,40 @@ ds_new = ds_new.map(is_correct, num_proc=32)
 
 ds_new = ds_new.filter(filter_example1, num_proc=32)
 
-ds_win = ds_new.filter(lambda example: example['is_correct'] == True)
-ds_lose = ds_new.filter(lambda example: example['is_correct'] == False)
+ds_win = ds_new.filter(lambda example: example["is_correct"] == True)
+ds_lose = ds_new.filter(lambda example: example["is_correct"] == False)
 
 print(len(ds_win) + len(ds_lose), len(ds_new))
 
-#print("I have win ", len(ds_win), " and lose ", len(ds_lose))
-def filter_win(example):
-    old_messages = example['messages']
 
-    if "error" in old_messages[-2]['content'].lower():
+# print("I have win ", len(ds_win), " and lose ", len(ds_lose))
+def filter_win(example):
+    old_messages = example["messages"]
+
+    if "error" in old_messages[-2]["content"].lower():
         return False
-    if "none" in old_messages[-2]['content'].lower():
+    if "none" in old_messages[-2]["content"].lower():
         return False
 
     return True
+
 
 print("I have win ", len(ds_win), " and lose ", len(ds_lose))
 ds_win = ds_win.filter(filter_win, num_proc=32)
 print("I have win ", len(ds_win), " and lose ", len(ds_lose))
 
-from collections import defaultdict
+
 win_ret = defaultdict(list)
 lose_ret = defaultdict(list)
 
 
 for sample in ds_win:
-    idx = sample['idx']
+    idx = sample["idx"]
     win_ret[idx].append(sample)
 
 
 for sample in ds_lose:
-    idx = sample['idx']
+    idx = sample["idx"]
     lose_ret[idx].append(sample)
 
 
@@ -671,12 +706,12 @@ for key, value in win_ret.items():
     all_texts = []
     new_samples = []
     for ins in all_samples:
-        if ins['messages'][1]['content'] in all_texts:
+        if ins["messages"][1]["content"] in all_texts:
             continue
-        all_texts.append(ins['messages'][1]['content'])
+        all_texts.append(ins["messages"][1]["content"])
         new_samples.append(ins)
         cnt_win += 1
-    
+
     new_win_ret[j].extend(new_samples)
 
 
@@ -692,9 +727,9 @@ for key, value in lose_ret.items():
     all_texts = []
     new_samples = []
     for ins in all_samples:
-        if ins['messages'][1]['content'] in all_texts:
+        if ins["messages"][1]["content"] in all_texts:
             continue
-        all_texts.append(ins['messages'][1]['content'])
+        all_texts.append(ins["messages"][1]["content"])
         new_samples.append(ins)
         cnt_lose += 1
 
@@ -702,6 +737,7 @@ for key, value in lose_ret.items():
 
 print("Before get final pairs, I have win and lose", cnt_win, cnt_lose)
 import random
+
 import numpy as np
 
 all_comp = []
@@ -710,7 +746,7 @@ all_keys = list(new_lose_ret.keys()) + list(new_win_ret.keys())
 all_keys = list(set(all_keys))
 import itertools
 
-'''
+"""
 for ins in new_win_ret[0]:
     print(is_correct(ins), ins['pred'][0])
 
@@ -718,9 +754,9 @@ for ins in new_lose_ret[0]:
     print(is_correct(ins), ins['pred'][0], ins)
     print(check1(ins['gt'], ins['pred'][0]))
     print(check1('\\frac{1}{4}', '0.25'))
-'''
+"""
 cnt_comp = 0
-#N = 1
+# N = 1
 for j in all_keys:
     if len(new_lose_ret[j]) > 0 and len(new_win_ret[j]) > 0:
         cnt_comp += N_pair
@@ -732,29 +768,44 @@ for j in all_keys:
     random.shuffle(all_neg)
     if len(all_pos) > N_pair and len(all_neg) > N_pair:
         for k in range(N_pair):
-            all_comp.append({'gt': all_pos[k]['gt'], 'rej': all_neg[k]['pred'], "chosen": all_pos[k]['messages'], "rejected": all_neg[k]['messages']})
-            all_sft.append({"messages": all_pos[k]['messages']})
+            all_comp.append(
+                {
+                    "gt": all_pos[k]["gt"],
+                    "rej": all_neg[k]["pred"],
+                    "chosen": all_pos[k]["messages"],
+                    "rejected": all_neg[k]["messages"],
+                }
+            )
+            all_sft.append({"messages": all_pos[k]["messages"]})
         continue
 
-    combinations = list(itertools.product( list(range(len(all_pos))), list(range(len(all_neg))) ))
+    combinations = list(itertools.product(list(range(len(all_pos))), list(range(len(all_neg)))))
 
     random.shuffle(combinations)
     for k in range(np.min([len(combinations), N_pair])):
-        all_comp.append({'gt':all_pos[combinations[k][0]]['gt'],  "chosen": all_pos[combinations[k][0]]['messages'], "rejected": all_neg[combinations[k][1]]['messages'], 'rej': all_neg[combinations[k][1]]['pred'] }) 
-        all_sft.append({"messages": all_pos[combinations[k][0]]['messages']})
+        all_comp.append(
+            {
+                "gt": all_pos[combinations[k][0]]["gt"],
+                "chosen": all_pos[combinations[k][0]]["messages"],
+                "rejected": all_neg[combinations[k][1]]["messages"],
+                "rej": all_neg[combinations[k][1]]["pred"],
+            }
+        )
+        all_sft.append({"messages": all_pos[combinations[k][0]]["messages"]})
 
 
-#print(all_comp[0])
+# print(all_comp[0])
 output_eval_dataset = {}
 output_eval_dataset["type"] = "text_only"
 output_eval_dataset["instances"] = all_comp
 print("I collect ", len(all_comp), "samples", len(all_sft))
 
 import json
+
 with open("tmp_comp.json", "w", encoding="utf8") as f:
     json.dump(output_eval_dataset, f, ensure_ascii=False)
 
-ds_comp = load_dataset('json', data_files='tmp_comp.json', split='train', field='instances')
+ds_comp = load_dataset("json", data_files="tmp_comp.json", split="train", field="instances")
 ds_comp.push_to_hub(data_comp)
 
 output_eval_dataset = {}
@@ -763,27 +814,28 @@ output_eval_dataset["instances"] = all_sft
 print("I collect ", len(all_comp), "samples", len(all_sft))
 
 import json
+
 with open("tmp_sft.json", "w", encoding="utf8") as f:
     json.dump(output_eval_dataset, f, ensure_ascii=False)
 
-ds_sft = load_dataset('json', data_files='tmp_sft.json', split='train', field='instances')
+ds_sft = load_dataset("json", data_files="tmp_sft.json", split="train", field="instances")
 ds_sft.push_to_hub(data_sft)
 
-#ds_new = ds_new.remove_columns("idx")
+# ds_new = ds_new.remove_columns("idx")
 
-#def add_index(example, idx):
+# def add_index(example, idx):
 #    # Add the current index to the example under a new field 'index'
 #    example['idx'] = idx
 #    return example
 
-#ds_new = ds_new.map(add_index, with_indices=True)
-#ds_new.push_to_hub("1231czx/prompts_80K_with_original_MATH_GSM8K_iter1")
+# ds_new = ds_new.map(add_index, with_indices=True)
+# ds_new.push_to_hub("1231czx/prompts_80K_with_original_MATH_GSM8K_iter1")
 
 ###################################
 
 N_pair = 3
-data_comp = '1231czx/7B_iter1_dpo_N3_random_pair'
-data_sft = '1231czx/7B_iter1_sft_N3'
+data_comp = "1231czx/7B_iter1_dpo_N3_random_pair"
+data_sft = "1231czx/7B_iter1_sft_N3"
 
 all_comp = []
 all_sft = []
@@ -791,7 +843,7 @@ all_keys = list(new_lose_ret.keys()) + list(new_win_ret.keys())
 all_keys = list(set(all_keys))
 import itertools
 
-'''
+"""
 for ins in new_win_ret[0]:
     print(is_correct(ins), ins['pred'][0])
 
@@ -799,9 +851,9 @@ for ins in new_lose_ret[0]:
     print(is_correct(ins), ins['pred'][0], ins)
     print(check1(ins['gt'], ins['pred'][0]))
     print(check1('\\frac{1}{4}', '0.25'))
-'''
+"""
 cnt_comp = 0
-#N = 1
+# N = 1
 for j in all_keys:
     if len(new_lose_ret[j]) > 0 and len(new_win_ret[j]) > 0:
         cnt_comp += N_pair
@@ -813,29 +865,44 @@ for j in all_keys:
     random.shuffle(all_neg)
     if len(all_pos) > N_pair and len(all_neg) > N_pair:
         for k in range(N_pair):
-            all_comp.append({'gt': all_pos[k]['gt'], 'rej': all_neg[k]['pred'], "chosen": all_pos[k]['messages'], "rejected": all_neg[k]['messages']})
-            all_sft.append({"messages": all_pos[k]['messages']})
+            all_comp.append(
+                {
+                    "gt": all_pos[k]["gt"],
+                    "rej": all_neg[k]["pred"],
+                    "chosen": all_pos[k]["messages"],
+                    "rejected": all_neg[k]["messages"],
+                }
+            )
+            all_sft.append({"messages": all_pos[k]["messages"]})
         continue
 
-    combinations = list(itertools.product( list(range(len(all_pos))), list(range(len(all_neg))) ))
+    combinations = list(itertools.product(list(range(len(all_pos))), list(range(len(all_neg)))))
 
     random.shuffle(combinations)
     for k in range(np.min([len(combinations), N_pair])):
-        all_comp.append({'gt':all_pos[combinations[k][0]]['gt'],  "chosen": all_pos[combinations[k][0]]['messages'], "rejected": all_neg[combinations[k][1]]['messages'], 'rej': all_neg[combinations[k][1]]['pred'] })
-        all_sft.append({"messages": all_pos[combinations[k][0]]['messages']})
+        all_comp.append(
+            {
+                "gt": all_pos[combinations[k][0]]["gt"],
+                "chosen": all_pos[combinations[k][0]]["messages"],
+                "rejected": all_neg[combinations[k][1]]["messages"],
+                "rej": all_neg[combinations[k][1]]["pred"],
+            }
+        )
+        all_sft.append({"messages": all_pos[combinations[k][0]]["messages"]})
 
 
-#print(all_comp[0])
+# print(all_comp[0])
 output_eval_dataset = {}
 output_eval_dataset["type"] = "text_only"
 output_eval_dataset["instances"] = all_comp
 print("I collect ", len(all_comp), "samples", len(all_sft))
 
 import json
+
 with open("tmp_comp.json", "w", encoding="utf8") as f:
     json.dump(output_eval_dataset, f, ensure_ascii=False)
 
-ds_comp = load_dataset('json', data_files='tmp_comp.json', split='train', field='instances')
+ds_comp = load_dataset("json", data_files="tmp_comp.json", split="train", field="instances")
 ds_comp.push_to_hub(data_comp)
 
 output_eval_dataset = {}
@@ -844,18 +911,19 @@ output_eval_dataset["instances"] = all_sft
 print("I collect ", len(all_comp), "samples", len(all_sft))
 
 import json
+
 with open("tmp_sft.json", "w", encoding="utf8") as f:
     json.dump(output_eval_dataset, f, ensure_ascii=False)
 
-ds_sft = load_dataset('json', data_files='tmp_sft.json', split='train', field='instances')
+ds_sft = load_dataset("json", data_files="tmp_sft.json", split="train", field="instances")
 ds_sft.push_to_hub(data_sft)
 
 
 ##########################
 
 N_pair = 8
-data_comp = '1231czx/7B_iter1_dpo_N8_random_pair'
-data_sft = '1231czx/7B_iter1_sft_N8'
+data_comp = "1231czx/7B_iter1_dpo_N8_random_pair"
+data_sft = "1231czx/7B_iter1_sft_N8"
 
 all_comp = []
 all_sft = []
@@ -863,7 +931,7 @@ all_keys = list(new_lose_ret.keys()) + list(new_win_ret.keys())
 all_keys = list(set(all_keys))
 import itertools
 
-'''
+"""
 for ins in new_win_ret[0]:
     print(is_correct(ins), ins['pred'][0])
 
@@ -871,9 +939,9 @@ for ins in new_lose_ret[0]:
     print(is_correct(ins), ins['pred'][0], ins)
     print(check1(ins['gt'], ins['pred'][0]))
     print(check1('\\frac{1}{4}', '0.25'))
-'''
+"""
 cnt_comp = 0
-#N = 1
+# N = 1
 for j in all_keys:
     if len(new_lose_ret[j]) > 0 and len(new_win_ret[j]) > 0:
         cnt_comp += N_pair
@@ -885,29 +953,44 @@ for j in all_keys:
     random.shuffle(all_neg)
     if len(all_pos) > N_pair and len(all_neg) > N_pair:
         for k in range(N_pair):
-            all_comp.append({'gt': all_pos[k]['gt'], 'rej': all_neg[k]['pred'], "chosen": all_pos[k]['messages'], "rejected": all_neg[k]['messages']})
-            all_sft.append({"messages": all_pos[k]['messages']})
+            all_comp.append(
+                {
+                    "gt": all_pos[k]["gt"],
+                    "rej": all_neg[k]["pred"],
+                    "chosen": all_pos[k]["messages"],
+                    "rejected": all_neg[k]["messages"],
+                }
+            )
+            all_sft.append({"messages": all_pos[k]["messages"]})
         continue
 
-    combinations = list(itertools.product( list(range(len(all_pos))), list(range(len(all_neg))) ))
+    combinations = list(itertools.product(list(range(len(all_pos))), list(range(len(all_neg)))))
 
     random.shuffle(combinations)
     for k in range(np.min([len(combinations), N_pair])):
-        all_comp.append({'gt':all_pos[combinations[k][0]]['gt'],  "chosen": all_pos[combinations[k][0]]['messages'], "rejected": all_neg[combinations[k][1]]['messages'], 'rej': all_neg[combinations[k][1]]['pred'] })
-        all_sft.append({"messages": all_pos[combinations[k][0]]['messages']})
+        all_comp.append(
+            {
+                "gt": all_pos[combinations[k][0]]["gt"],
+                "chosen": all_pos[combinations[k][0]]["messages"],
+                "rejected": all_neg[combinations[k][1]]["messages"],
+                "rej": all_neg[combinations[k][1]]["pred"],
+            }
+        )
+        all_sft.append({"messages": all_pos[combinations[k][0]]["messages"]})
 
 
-#print(all_comp[0])
+# print(all_comp[0])
 output_eval_dataset = {}
 output_eval_dataset["type"] = "text_only"
 output_eval_dataset["instances"] = all_comp
 print("I collect ", len(all_comp), "samples", len(all_sft))
 
 import json
+
 with open("tmp_comp.json", "w", encoding="utf8") as f:
     json.dump(output_eval_dataset, f, ensure_ascii=False)
 
-ds_comp = load_dataset('json', data_files='tmp_comp.json', split='train', field='instances')
+ds_comp = load_dataset("json", data_files="tmp_comp.json", split="train", field="instances")
 ds_comp.push_to_hub(data_comp)
 
 output_eval_dataset = {}
@@ -916,8 +999,9 @@ output_eval_dataset["instances"] = all_sft
 print("I collect ", len(all_comp), "samples", len(all_sft))
 
 import json
+
 with open("tmp_sft.json", "w", encoding="utf8") as f:
     json.dump(output_eval_dataset, f, ensure_ascii=False)
 
-ds_sft = load_dataset('json', data_files='tmp_sft.json', split='train', field='instances')
+ds_sft = load_dataset("json", data_files="tmp_sft.json", split="train", field="instances")
 ds_sft.push_to_hub(data_sft)
