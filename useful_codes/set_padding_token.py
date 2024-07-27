@@ -15,23 +15,5 @@ model.config.pad_token_id = tokenizer.pad_token_id
 
 model.resize_token_embeddings(len(tokenizer))
 
-
-model.save_pretrained("/home/wx/sft/RLHF-Reward-Modeling/pair-pm/pm_models/mistral_with_pad")
-tokenizer.save_pretrained("/home/wx/sft/RLHF-Reward-Modeling/pair-pm/pm_models/mistral_with_pad")
-
-~                                                                                                                                                                                                                                                       
-~                                                                                                                                                                                                                                                       
-~                                                                                                                                                                                                                                                       
-~                                                                                                                                                                                                                                                       
-~                                                                                                                                                                                                                                                       
-~                                                                                                                                                                                                                                                       
-~                                                                                                                                                                                                                                                       
-~                                                                                                                                                                                                                                                       
-~                                                                                                                                                                                                                                                       
-~                                                                                                                                                                                                                                                       
-~                                                                                                                                                                                                                                                       
-~                                                                                                                                                                                                                                                       
-~                                                                                                                                                                                                                                                       
-~                                                                                                                                                                                                                                                       
-~                                                                                                                                                                                                                                                       
-~                      
+model.save_pretrained("output_dir")
+tokenizer.save_pretrained("output_dir")
