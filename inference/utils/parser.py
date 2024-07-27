@@ -115,7 +115,7 @@ def strip_string(string):
         string = string.replace("inf", "\\infty")
     string = string.replace("+\\inity", "\\infty")
 
-    # and 
+    # and
     string = string.replace("and", "")
     string = string.replace("\\mathbf", "")
 
@@ -124,8 +124,8 @@ def strip_string(string):
 
     # quote
     string.replace("'", "")
-    string.replace("\"", "")
-    
+    string.replace('"', "")
+
     # i, j
     if "j" in string and "i" not in string:
         string = string.replace("j", "i")
@@ -156,39 +156,42 @@ def strip_string(string):
 
     return string
 
+
 def extract_answer(pred_str):
-    if 'boxed' in pred_str:
-        ans = pred_str.split('boxed')[-1]
+    if "boxed" in pred_str:
+        ans = pred_str.split("boxed")[-1]
         if len(ans) == 0:
             return ""
-        elif (ans[0] == '{'):
+        elif ans[0] == "{":
             stack = 1
-            a = ''
+            a = ""
             for c in ans[1:]:
-                if (c == '{'):
+                if c == "{":
                     stack += 1
                     a += c
-                elif (c == '}'):
+                elif c == "}":
                     stack -= 1
-                    if (stack == 0): break
+                    if stack == 0:
+                        break
                     a += c
                 else:
                     a += c
         else:
-            a = ans.split('$')[0].strip()
-        pred=a
-    elif ('he answer is' in pred_str):
-        pred = pred_str.split('he answer is')[-1].strip()
+            a = ans.split("$")[0].strip()
+        pred = a
+    elif "he answer is" in pred_str:
+        pred = pred_str.split("he answer is")[-1].strip()
     elif extract_program_output(pred_str) != "":
         # fall back to program
         pred = extract_program_output(pred_str)
-    else: # use the last number
-        pattern = '-?\d*\.?\d+'
+    else:  # use the last number
+        pattern = "-?\d*\.?\d+"
         pred = re.findall(pattern, pred_str.replace(",", ""))
-        if(len(pred) >= 1):
+        if len(pred) >= 1:
             pred = pred[-1]
-        else: pred = ''
-    
+        else:
+            pred = ""
+
     # multiple line
     pred = pred.split("\n")[0]
     if pred != "" and pred[0] == ":":
@@ -199,6 +202,7 @@ def extract_answer(pred_str):
         pred = pred[:-1]
     pred = strip_string(pred)
     return pred
+
 
 '''
 def extract_program(result: str, last_only=True):
@@ -221,6 +225,7 @@ def extract_program(result: str, last_only=True):
     return program
 '''
 
+
 def extract_program(result: str, last_only=False):
     """
     extract the program after "```python", and before "```"
@@ -229,13 +234,13 @@ def extract_program(result: str, last_only=False):
     start = False
     program = ""
     for line in result.split("\n"):
-        #if line.startswith("```python"):
+        # if line.startswith("```python"):
         if "```python" in line:
             program = ""
-            #if last_only:
+            # if last_only:
             #    program = "" # only extract the last program
-            #else:
-                #program += "\n# ========\n"
+            # else:
+            # program += "\n# ========\n"
 
             start = True
         elif line.startswith("```"):
@@ -253,48 +258,47 @@ def extract_program_output(pred_str):
     """
     if "```output" not in pred_str:
         return ""
-    if '```output' in pred_str:
-        pred_str = pred_str.split('```output')[-1]
-    if '```' in pred_str:
-        pred_str = pred_str.split('```')[0]
+    if "```output" in pred_str:
+        pred_str = pred_str.split("```output")[-1]
+    if "```" in pred_str:
+        pred_str = pred_str.split("```")[0]
     output = pred_str.strip()
     return output
 
 
-
 def parse_ground_truth(example: Dict[str, Any], data_name):
-    if 'gt_cot' in example:
-        return example['gt_cot'], strip_string(example['gt'])
+    if "gt_cot" in example:
+        return example["gt_cot"], strip_string(example["gt"])
 
     # parse ground truth
-    if data_name in ["math", 'ocw']:
-        gt_cot = example['solution']
+    if data_name in ["math", "ocw"]:
+        gt_cot = example["solution"]
         gt_ans = extract_answer(gt_cot)
     elif data_name == "gsm8k":
-        gt_cot, gt_ans = example['answer'].split("####")
+        gt_cot, gt_ans = example["answer"].split("####")
     elif data_name == "gsm-hard":
-        gt_cot, gt_ans = example['code'], example['target']
+        gt_cot, gt_ans = example["code"], example["target"]
     elif data_name == "svamp":
-        gt_cot, gt_ans = example['Equation'], example['Answer']
+        gt_cot, gt_ans = example["Equation"], example["Answer"]
     elif data_name == "asdiv":
-        gt_cot = example['formula']
-        gt_ans = re.sub(r"\(.*?\)", "", example['answer'])
+        gt_cot = example["formula"]
+        gt_ans = re.sub(r"\(.*?\)", "", example["answer"])
     elif data_name == "mawps":
-        gt_cot, gt_ans = None, example['target']
+        gt_cot, gt_ans = None, example["target"]
     elif data_name == "tabmwp":
-        gt_cot = example['solution']
-        gt_ans = example['answer']
-        if example['ans_type'] in ['integer_number', 'decimal_number']:
-            if '/' in gt_ans:
-                gt_ans = int(gt_ans.split('/')[0]) / int(gt_ans.split('/')[1])
-            elif ',' in gt_ans:
-                gt_ans = float(gt_ans.replace(',', ''))
-            elif '%' in gt_ans:
-                gt_ans = float(gt_ans.split('%')[0]) / 100
+        gt_cot = example["solution"]
+        gt_ans = example["answer"]
+        if example["ans_type"] in ["integer_number", "decimal_number"]:
+            if "/" in gt_ans:
+                gt_ans = int(gt_ans.split("/")[0]) / int(gt_ans.split("/")[1])
+            elif "," in gt_ans:
+                gt_ans = float(gt_ans.replace(",", ""))
+            elif "%" in gt_ans:
+                gt_ans = float(gt_ans.split("%")[0]) / 100
             else:
                 gt_ans = float(gt_ans)
     elif data_name == "bbh":
-        gt_cot, gt_ans = None, example['target']
+        gt_cot, gt_ans = None, example["target"]
     else:
         raise NotImplementedError(data_name)
     # post process
@@ -313,13 +317,13 @@ def parse_question(example, data_name):
             body = body + "."
         question = f'{body} {example["Question"].strip()}'
     elif data_name == "tabmwp":
-        title_str = f'regarding "{example["table_title"]}" ' if example['table_title'] else ""
-        question = f'Read the following table {title_str}and answer a question:\n'
+        title_str = f'regarding "{example["table_title"]}" ' if example["table_title"] else ""
+        question = f"Read the following table {title_str}and answer a question:\n"
         question += f'{example["table"]}\n{example["question"]}'
-        if example['choices']:
+        if example["choices"]:
             question += f' Please select from the following options: {example["choices"]}'
     else:
-        for key in ['question', 'problem', 'Question', 'input']:
+        for key in ["question", "problem", "Question", "input"]:
             if key in example:
                 question = example[key]
                 break
@@ -328,7 +332,7 @@ def parse_question(example, data_name):
 
 
 def run_execute(executor, result, prompt_type, execute=False):
-    if not result or result == 'error':
+    if not result or result == "error":
         return None, None
     report = None
 
