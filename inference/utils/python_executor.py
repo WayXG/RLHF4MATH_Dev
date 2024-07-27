@@ -69,7 +69,9 @@ def extract_after_traceback(text):
         return text
 
 
-
+def get_error(txt):
+    tmp = extract_after_traceback(remove_ansi_escape_codes(txt))
+    return tmp.split("\n\n")[-1]
 class GenericRuntime:
     GLOBAL_DICT = {}
     LOCAL_DICT = None
@@ -243,6 +245,9 @@ print(json.dumps(to_return))
         batch_results = []
         for prediction in my_results:
             if prediction[0]:
+                if 'Timeout Error' in prediction[0]:
+                    batch_results.append(('Timeout Error', ''))
+                    continue
                 try:
                     dict_data = json.loads(prediction[0])
                 except:
@@ -250,25 +255,25 @@ print(json.dumps(to_return))
                     if match:
                         batch_results.append(('', match.group(1)))
                     else:
-                        batch_results.append(('', 'There exists some error in your code. Please rewrite the code and solve the problem.'))
-                    #print(batch_results[-1])
+                        batch_results.append(('1 There exists some error in your code. Please rewrite the code and solve the problem.', '1 There exists some error in your code. Please rewrite the code and solve the problem.'))
                     continue
             else:
-                batch_results.append(('', prediction[1]))
+                batch_results.append(('2 There exists some error in your code. Please rewrite the code and solve the problem.', '2 There exists some error in your code. Please rewrite the code and solve the problem.'))
+                print(prediction)
                 continue
 
             #dict_data = json.loads(prediction[0])
             try:
                 dict_data['error_message']
             except:
-                batch_results.append(('', 'There exists some error in your code. Please rewrite the code and solve the problem.'))
-                #print(dict_data)
+                batch_results.append(('3 There exists some error in your code. Please rewrite the code and solve the problem.', '3 There exists some error in your code. Please rewrite the code and solve the problem.'))
+                print(prediction)
                 continue
             if dict_data['error_message']:
-                batch_results.append((extract_after_traceback(remove_ansi_escape_codes(dict_data['error_message'])) , ''))
+                batch_results.append((get_error(dict_data['result']), ''))
             else:
                 batch_results.append((dict_data['result'], ''))
-        print(batch_results)
+        #print(batch_results)
         return batch_results
 
         
@@ -309,7 +314,7 @@ print(json.dumps(to_return))
                 except StopIteration:
                     break
                 except TimeoutError as error:
-                    all_exec_results.append(("", "Timeout Error"))
+                    all_exec_results.append(("Timeout Error", "Timeout Error"))
                     timeout_cnt += 1
                 except Exception as error:
                     #print(error)
@@ -324,7 +329,7 @@ print(json.dumps(to_return))
         for code, (res, report) in zip(all_code_snippets, all_exec_results):
             # post processing
             res, report = str(res).strip(), str(report).strip()
-            res, report = self.truncate(res), self.truncate(report)
+            #res, report = self.truncate(res), self.truncate(report)
             batch_results.append((res.strip().replace("Out[1]: ", ""), report))
         return batch_results
 
