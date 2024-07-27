@@ -7,7 +7,7 @@ load_in_4bit: false
 strict: false
 
 datasets:
-  - path: RRLHF/math_instruct_only510k
+  - path: RLHF4MATH/SFT_510K
     conversation: mistral
     type: sharegpt.load_ultrachat
     split: "train"
@@ -15,7 +15,7 @@ datasets:
 
 warmup_steps: 50
 val_set_size: 0.0
-output_dir: ./models/mistral_bz64_5e6_pack4096_1200k
+output_dir: ./models/mistral_bz64_1e5_pack4096_1200k
 wandb_project: huggingface
 #wandb_entity: sft
 wandb_watch:
