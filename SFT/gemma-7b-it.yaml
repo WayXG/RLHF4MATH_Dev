@@ -15,7 +15,7 @@ datasets:
 
 warmup_steps: 50
 val_set_size: 0.0
-output_dir: ./pm_models/gemma-7b-it_bz64_lr5e-6_non_pack
+output_dir: ./pm_models/code_gemma-7b-it_bz64_lr5e-6_non_pack
 wandb_project: huggingface
 #wandb_entity: domain-generalization
 wandb_watch:
