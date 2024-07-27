@@ -10,7 +10,7 @@ TL;DL: this is the repo for "<a href="https://arxiv.org/abs/2309.17452" target="
 We consider the math problem solving with python interpreter, which means that the model can write a python code and ask the external environmnet to execute and receive the excutaion result, before the LLM makes its next decision.
 
 <p align="center">
-    <img src="https://github.com/user-attachments/assets/8789f87e-e0ca-426f-91dc-fe48356568cc" width="600">
+    <img src="./assets/main_result.png" width="600">
         <br>
     <em>Figure 1: Main evaluation results on the MATH and GSK8K datasets.</em>
 </p>
