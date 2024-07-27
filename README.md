@@ -1,8 +1,19 @@
-# RLHF4MATH_Dev
+<h1 align="center">
+<br>
+Building Math Agents with Multi-Turn Iterative Preference Learning
+</h1>
 
-TL;DL: this is an implementation of the Online Iterative Direct Preference Learning for Multi-turn Mathematical Reasoning with External Tools.
+<p align="center">
+TL;DL: this is the repo for "<a href="https://arxiv.org/abs/2309.17452" target="_blank">Building Math Agents with Multi-Turn Iterative Preference Learning</a>"
+</p>
 
 We consider the math problem solving with python interpreter, which means that the model can write a python code and ask the external environmnet to execute and receive the excutaion result, before the LLM makes its next decision.
+
+<p align="center">
+    <img src="https://github.com/user-attachments/assets/8789f87e-e0ca-426f-91dc-fe48356568cc" width="600">
+        <br>
+    <em>Figure 1: Main evaluation results on the MATH and GSK8K datasets.</em>
+</p>
 
 ## Installation instructions
 
