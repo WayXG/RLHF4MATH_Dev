@@ -33,11 +33,11 @@ class ScriptArguments:
         metadata={"help": "the location of the SFT model name or path"},
     )
     train_dir: Optional[str] = field(
-        default="RLHF4MATH/Gemma_7B_iter1_random_pair",
+        default="RLHF4MATH/Gemma-7B-1.1-it-iter1-random-pairs",
         metadata={"help": "the location of the dataset name or path"},
     )
     eval_dir: Optional[str] = field(
-        default="RLHF4MATH/Gemma_7B_iter1_random_pair", 
+        default="RLHF4MATH/Gemma-7B-1.1-it-iter1-random-pairs", 
         metadata={"help": "the location of the evalset name or path"},
     )
     learning_rate: Optional[float] = field(default=4e-7, metadata={"help": "optimizer learning rate"})
@@ -65,16 +65,16 @@ class ScriptArguments:
     margin_scale: Optional[float] = field(default=1.0, metadata={"help": "the margin scale"})
 
     max_prompt_length: Optional[int] = field(default=1000, metadata={"help": "the maximum prompt length"})
-    max_length: Optional[int] = field(default=1800, metadata={"help": "the maximum sequence length"})
+    max_length: Optional[int] = field(default=2048, metadata={"help": "the maximum sequence length"})
     max_steps: Optional[int] = field(default=4000, metadata={"help": "max number of training steps"})
     num_train_epochs: Optional[int] = field(default=2, metadata={"help": "max number of training epochs"})
     logging_steps: Optional[int] = field(default=2, metadata={"help": "the logging frequency"})
     save_strategy: Optional[str] = field(default="steps", metadata={"help": "the saving strategy"})
     save_steps: Optional[int] = field(default=25, metadata={"help": "the saving frequency"})
     eval_steps: Optional[int] = field(default=300, metadata={"help": "the evaluation frequency"})
-    run_name: Optional[str] = field(default="mdpo_iter1_gemma2b_lr7e7_bz32", metadata={"help": "the run name"})
+    run_name: Optional[str] = field(default="mdpo_iter1_gemma7b_lr4e7_bz32", metadata={"help": "the run name"})
     loss_type: Optional[str] = field(default="sigmoid", metadata={"help": "the loss type"})
-    output_dir: Optional[str] = field(default="./7b_dpo_iter1_bz32_4e7", metadata={"help": "the output directory"})
+    output_dir: Optional[str] = field(default="./mdpo_iter1_gemma7b_lr4e7_bz32", metadata={"help": "the output directory"})
     log_freq: Optional[int] = field(default=2, metadata={"help": "the logging frequency"})
 
     # instrumentation
