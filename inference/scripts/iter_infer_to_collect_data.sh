@@ -1,8 +1,8 @@
-# Need to register the model first ... 
-
-MODEL_NAME_OR_PATH="llm-agents/tora-code-34b-v1.0"
-
-# DATA_LIST = ['math', 'gsm8k', 'gsm-hard', 'svamp', 'tabmwp', 'asdiv', 'mawps']
+if [ $# -eq 0 ]; then
+    echo "Usage: $0 <model_path>"
+    exit 1
+fi
+MODEL_NAME_OR_PATH=$1
 
 #DATA_NAME="math"
 DATA_NAME="gsm8k"
@@ -15,7 +15,7 @@ NUM_TEST_SAMPLE=-1
 for ((i=0; i<=8000; i+=1))
 do
 TOKENIZERS_PARALLELISM=false \
-python -um data_collect.infer_api_collect_data \
+python -um infer_data.collect_data \
 --model_name_or_path ${MODEL_NAME_OR_PATH} \
 --data_name ${DATA_NAME} \
 --output_dir ${OUTPUT_DIR} \
