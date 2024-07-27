@@ -1,26 +1,27 @@
 ##############
 # Modified from ToRA and Math Instruct project.
 ###############
+import os
+import io
+import re
+import regex
+import pickle
+import traceback
 import copy
 import datetime
-import io
-import json
-import os
-import pickle
-import re
-import traceback
-from concurrent.futures import TimeoutError
-from contextlib import redirect_stdout
-from functools import partial
-from typing import Any, Dict, Optional
-
 import dateutil.relativedelta
 import multiprocess
-import regex
 from multiprocess import Pool
+from typing import Any, Dict, Optional
 from pebble import ProcessPool
-from timeout_decorator import timeout
 from tqdm import tqdm
+from concurrent.futures import TimeoutError
+from functools import partial
+from timeout_decorator import timeout
+from contextlib import redirect_stdout
+import json
+
+
 
 NOT_EXECUTED = "<not_executed>"
 EXECUTION_ERROR = "Execution error:"
@@ -34,32 +35,31 @@ ERROR_PREFIXES = (EXECUTION_ERROR, SYNTAX_ERROR, RESULT_NOT_DEFINED_ERROR, TIMEO
 def remove_ansi_escape_codes(text):
     """
     Remove ANSI escape codes from the given text.
-
+    
     Args:
     text (str): The text from which to remove ANSI escape codes.
-
+    
     Returns:
     str: The text with ANSI escape codes removed.
     """
     # ANSI escape codes start with the escape character followed by '['
     # and end with a lowercase or uppercase letter.
-    ansi_escape = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
-    return ansi_escape.sub("", text)
-
+    ansi_escape = re.compile(r'\x1b\[[0-?]*[ -/]*[@-~]')
+    return ansi_escape.sub('', text)
 
 def extract_after_traceback(text):
     """
     Extract and return the content of the text after the first occurrence of "Traceback".
-
+    
     Args:
     text (str): The text from which to extract content after "Traceback".
-
+    
     Returns:
     str: The content after "Traceback", or the whole text if "Traceback" is not found.
     """
     # Split the text at the first occurrence of "Traceback"
     parts = text.split("Traceback", 1)
-
+    
     # Check if the split actually found "Traceback" and split the text
     if len(parts) > 1:
         # Return the part after "Traceback"
@@ -69,16 +69,11 @@ def extract_after_traceback(text):
         return text
 
 
-def get_error(txt):
-    tmp = extract_after_traceback(remove_ansi_escape_codes(txt))
-    return tmp.split("\n\n")[-1]
-
 
 class GenericRuntime:
     GLOBAL_DICT = {}
     LOCAL_DICT = None
     HEADERS = []
-
     def __init__(self):
         self._global_vars = copy.copy(self.GLOBAL_DICT)
         self._local_vars = copy.copy(self.LOCAL_DICT) if self.LOCAL_DICT else None
@@ -88,12 +83,12 @@ class GenericRuntime:
 
     def exec_code(self, code_piece: str) -> None:
         # if the code contains input() or os.system(), return Error
-        if regex.search(r"(\s|^)?input\(", code_piece) or regex.search(r"(\s|^)?os.system\(", code_piece):
+        if regex.search(r'(\s|^)?input\(', code_piece) or regex.search(r'(\s|^)?os.system\(', code_piece):
             raise RuntimeError()
         # exec is a built-in python function to execute python code
         # _global_vars is a dict containing the global variables that can be used and modified by the code_piece
         exec(code_piece, self._global_vars)
-
+        
     def eval_code(self, expr: str) -> Any:
         """
         # Evaluate a simple expression
@@ -110,21 +105,20 @@ class GenericRuntime:
         print(evaluator._global_vars['x'])  # Output: 15
         """
         return eval(expr, self._global_vars)
-
+    
     def inject(self, var_dict: Dict[str, Any]) -> None:
         for k, v in var_dict.items():
             self._global_vars[k] = v
-
+    
     @property
     def answer(self):
-        return self._global_vars["answer"]
-
+        return self._global_vars['answer']
 
 class DateRuntime(GenericRuntime):
     GLOBAL_DICT = {
-        "datetime": datetime.datetime,
-        "timedelta": dateutil.relativedelta.relativedelta,
-        "relativedelta": dateutil.relativedelta.relativedelta,
+        'datetime': datetime.datetime, 
+        'timedelta': dateutil.relativedelta.relativedelta,
+        'relativedelta': dateutil.relativedelta.relativedelta
     }
 
 
@@ -132,9 +126,8 @@ class CustomDict(dict):
     def __iter__(self):
         return list(super().__iter__()).__iter__()
 
-
 class ColorObjectRuntime(GenericRuntime):
-    GLOBAL_DICT = {"dict": CustomDict}
+    GLOBAL_DICT = {'dict': CustomDict}
 
 
 class PythonExecutor:
@@ -154,16 +147,16 @@ class PythonExecutor:
         self.timeout_length = timeout_length
 
     def process_generation_to_code(self, gens: str):
-        return [g.split("\n") for g in gens]
+        return [g.split('\n') for g in gens]
 
     @staticmethod
     def execute(
         code,
-        get_answer_from_stdout=None,
-        runtime=None,
-        answer_symbol=None,
-        answer_expr=None,
-        timeout_length=10,
+        get_answer_from_stdout = None,
+        runtime = None,
+        answer_symbol = None,
+        answer_expr = None,
+        timeout_length = 10,
     ):
         try:
             if get_answer_from_stdout:
@@ -172,26 +165,26 @@ class PythonExecutor:
                 # redirect_stdout: move all the standard output to the program_io
                 with redirect_stdout(program_io):
                     # run the code for at most timeout_length seconds and get all the output to program_io
-                    timeout(timeout_length)(runtime.exec_code)("\n".join(code))
+                    timeout(timeout_length)(runtime.exec_code)('\n'.join(code))
                 # move the the begging of the outputs
                 program_io.seek(0)
                 result = program_io.read()
             elif answer_symbol:
-                timeout(timeout_length)(runtime.exec_code)("\n".join(code))
+                timeout(timeout_length)(runtime.exec_code)('\n'.join(code))
                 result = runtime._global_vars[answer_symbol]
             elif answer_expr:
-                timeout(timeout_length)(runtime.exec_code)("\n".join(code))
+                timeout(timeout_length)(runtime.exec_code)('\n'.join(code))
                 # eval_code(answer_expr), possibly because the global random variables are modified and can be used..
                 result = timeout(timeout_length)(runtime.eval_code)(answer_expr)
             else:
-                timeout(timeout_length)(runtime.exec_code)("\n".join(code[:-1]))
+                timeout(timeout_length)(runtime.exec_code)('\n'.join(code[:-1]))
                 result = timeout(timeout_length)(runtime.eval_code)(code[-1])
             report = "Done"
-            # str(result)
-            pickle.dumps(result)  # serialization check
+            #str(result)
+            pickle.dumps(result) # serialization check
         except:
-            report = traceback.format_exc().split("\n")[-2]
-            result = json.dumps({"result": "", "error_message": report})
+            report = traceback.format_exc().split('\n')[-2]
+            result = json.dumps({"result":"", "error_message": report})
         return result, report
 
     def apply(self, code):
@@ -200,11 +193,10 @@ class PythonExecutor:
     def batch_apply(self, batch_code_seq):
         # We will format the codes to be executed into the Jupyter format and then run the code.
         # The observation is captured as the standard output of the newest code
-        # In other words, the models can write multi-rounds of code. All the codes will be executed 
-        # but only the output of the last round will be captured and returned.
+        # In other words, the models can write multi-rounds of code. All the codes will be executed but only the output of the last round will be captured and returned.
         all_processed_codes = []
         for code_seq in batch_code_seq:
-
+            
             z = """
 import traceback
 import json
@@ -218,7 +210,7 @@ from IPython.utils import io
 code_snippets = []
 """
             for code_snippet in code_seq:
-                # z += f'\ncode_snippets.append("""{code_snippet}""")\n'
+                #z += f'\ncode_snippets.append("""{code_snippet}""")\n'
                 escaped_code_snippet = code_snippet.replace('"""', '\\"\\"\\"')
                 z += f'\ncode_snippets.append("""{escaped_code_snippet}""")\n'
             z += f"""
@@ -251,59 +243,42 @@ print(json.dumps(to_return))
         batch_results = []
         for prediction in my_results:
             if prediction[0]:
-                if "Timeout Error" in prediction[0]:
-                    batch_results.append(("Timeout Error", ""))
-                    continue
                 try:
                     dict_data = json.loads(prediction[0])
                 except:
                     match = re.search(r'"error_message":\s*"([^"]*)"', prediction[0])
                     if match:
-                        batch_results.append(("", match.group(1)))
+                        batch_results.append(('', match.group(1)))
                     else:
-                        batch_results.append(
-                            (
-                                "1 There exists some error in your code. Please rewrite the code and solve the problem.",
-                                "1 There exists some error in your code. Please rewrite the code and solve the problem.",
-                            )
-                        )
+                        batch_results.append(('', 'There exists some error in your code. Please rewrite the code and solve the problem.'))
+                    #print(batch_results[-1])
                     continue
             else:
-                batch_results.append(
-                    (
-                        "2 There exists some error in your code. Please rewrite the code and solve the problem.",
-                        "2 There exists some error in your code. Please rewrite the code and solve the problem.",
-                    )
-                )
-                print(prediction)
+                batch_results.append(('', prediction[1]))
                 continue
 
-            # dict_data = json.loads(prediction[0])
+            #dict_data = json.loads(prediction[0])
             try:
-                dict_data["error_message"]
+                dict_data['error_message']
             except:
-                batch_results.append(
-                    (
-                        "3 There exists some error in your code. Please rewrite the code and solve the problem.",
-                        "3 There exists some error in your code. Please rewrite the code and solve the problem.",
-                    )
-                )
-                print(prediction)
+                batch_results.append(('', 'There exists some error in your code. Please rewrite the code and solve the problem.'))
+                #print(dict_data)
                 continue
-            if dict_data["error_message"]:
-                batch_results.append((get_error(dict_data["result"]), ""))
+            if dict_data['error_message']:
+                batch_results.append((extract_after_traceback(remove_ansi_escape_codes(dict_data['error_message'])) , ''))
             else:
-                batch_results.append((dict_data["result"], ""))
-        # print(batch_results)
+                batch_results.append((dict_data['result'], ''))
+        print(batch_results)
         return batch_results
 
+        
     @staticmethod
     def truncate(s, max_length=100):
         half = max_length // 2
         if len(s) > max_length:
             s = s[:half] + "..." + s[-half:]
         return s
-
+            
     def old_batch_apply(self, batch_code):
 
         all_code_snippets = self.process_generation_to_code(batch_code)
@@ -317,15 +292,15 @@ print(json.dumps(to_return))
                 runtime=self.runtime,
                 answer_symbol=self.answer_symbol,
                 answer_expr=self.answer_expr,
-                timeout_length=self.timeout_length,  # this timeout not work
+                timeout_length=self.timeout_length, # this timeout not work
             )
             future = pool.map(executor, all_code_snippets, timeout=self.timeout_length)
             iterator = future.result()
 
-            if len(all_code_snippets) > 100:
-                progress_bar = tqdm(total=len(all_code_snippets), desc="Execute")
-            else:
-                progress_bar = None
+            if len(all_code_snippets) > 100:  
+                progress_bar = tqdm(total=len(all_code_snippets), desc="Execute")  
+            else:  
+                progress_bar = None 
 
             while True:
                 try:
@@ -334,21 +309,22 @@ print(json.dumps(to_return))
                 except StopIteration:
                     break
                 except TimeoutError as error:
-                    all_exec_results.append(("Timeout Error", "Timeout Error"))
+                    all_exec_results.append(("", "Timeout Error"))
                     timeout_cnt += 1
                 except Exception as error:
-                    # print(error)
+                    #print(error)
                     exit()
                 if progress_bar is not None:
-                    progress_bar.update(1)
-
+                    progress_bar.update(1) 
+            
             if progress_bar is not None:
-                progress_bar.close()
+                progress_bar.close() 
 
         batch_results = []
         for code, (res, report) in zip(all_code_snippets, all_exec_results):
             # post processing
             res, report = str(res).strip(), str(report).strip()
-            # res, report = self.truncate(res), self.truncate(report)
+            res, report = self.truncate(res), self.truncate(report)
             batch_results.append((res.strip().replace("Out[1]: ", ""), report))
         return batch_results
+
