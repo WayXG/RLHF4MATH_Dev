@@ -122,7 +122,6 @@ def cross_entropy_loss(logits, labels):
 
 labels = concatenated_batch["concatenated_labels"].clone()
 nll_loss = cross_entropy_loss(all_logits[:len_chosen], labels[:len_chosen])
-#########################################
 ```
 
 
