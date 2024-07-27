@@ -38,7 +38,7 @@ def parse_args():
     parser.add_argument("--top_p", default=1, type=float)
     parser.add_argument("--max_tokens_per_call", default=1024, type=int)
     parser.add_argument("--shuffle", action="store_true")
-    parser.add_argument("--ports", default=["8008", "8001", "8002", "8003", "8004", "8005", "8006", "8007"])
+    parser.add_argument("--ports", default=["8000", "8001", "8002", "8003", "8004", "8005", "8006", "8007"])
     args = parser.parse_args()
     args.top_p = 1 if args.temperature == 0 else args.top_p  # top_p must be 1 when using greedy sampling (vllm)
     return args
