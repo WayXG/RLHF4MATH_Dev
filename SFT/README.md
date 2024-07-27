@@ -1,6 +1,6 @@
 # SFT for Multi-round Chat
 
-We conduct supervised fine-tuning here for multi-turn chat. The data is supposed to be processed into the standard format (see [(1231czx/math_instruct_only1200k](https://huggingface.co/datasets/1231czx/math_instruct_only1200k?row=1)) for an example). 
+We conduct supervised fine-tuning here for multi-turn chat. The data is supposed to be processed into the standard format (see [RLHF4MATH/SFT_510K](https://huggingface.co/datasets/RLHF4MATH/SFT_510K)) for an example). 
 
 We formulate the problem into a multi-turn chat format where the ``user'' prompts the assistant (LLM) to solve a math problem and provides the external feedback. An example is as follows.
 
