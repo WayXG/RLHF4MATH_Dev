@@ -25,19 +25,19 @@ class ScriptArguments:
 
     # training parameters
     model_name_or_path: Optional[str] = field(
-        default="1231czx/7b_510k_5e6_bz64_sft3peoch", 
+        default="RLHF4MATH/Gemma-7B-it-SFT3epoch", 
         metadata={"help": "the location of the model name or path"},
     )
     ref_model: Optional[str] = field(
-        default="1231czx/7b_510k_5e6_bz64_sft3peoch",
+        default="RLHF4MATH/Gemma-7B-it-SFT3epoch",
         metadata={"help": "the location of the SFT model name or path"},
     )
     train_dir: Optional[str] = field(
-        default="1231czx/7B_iter1_dpo_N1_random_pair",
+        default="RLHF4MATH/Gemma_7B_iter1_random_pair",
         metadata={"help": "the location of the dataset name or path"},
     )
     eval_dir: Optional[str] = field(
-        default="1231czx/7B_iter1_dpo_N1_random_pair", 
+        default="RLHF4MATH/Gemma_7B_iter1_random_pair", 
         metadata={"help": "the location of the evalset name or path"},
     )
     learning_rate: Optional[float] = field(default=4e-7, metadata={"help": "optimizer learning rate"})
@@ -107,7 +107,7 @@ class ScriptArguments:
 
 def prepare_data(
     tokenizer,
-    data_dir: str = "/home/xiongwei/data/helpful/rm/rm1003.json",
+    data_dir: str = "xxx",
     sanity_check: bool = False,
     cache_dir: str = None,
     num_proc=24,
@@ -121,7 +121,6 @@ def prepare_data(
     """
     ds = load_dataset(data_dir, split='train')
     ds = ds.shuffle(seed=42)
-    #ds = ds.select(range(2000))
     print(ds)
 
     pos = []
@@ -135,7 +134,6 @@ def prepare_data(
         prompt = tokenizer.apply_chat_template([chosen[0]], tokenize=False, add_generation_prompt=True)
         prompt2 = tokenizer.apply_chat_template([rejected[0]], tokenize=False, add_generation_prompt=True)
         if prompt != prompt2:
-            #print(prompt, prompt2)
             cc += 1
             continue 
           
@@ -147,7 +145,7 @@ def prepare_data(
         neg.append(rejected_str)
         margin.append(0.5)
     dataset = Dataset.from_dict({"prompt": prompts, "chosen": pos, "rejected": neg, "margin": margin})
-    print(cc)
+    print(cc, "prompts are not the same)
     if sanity_check:
         dataset = dataset.select(range(min(len(dataset), 100)))
 
@@ -183,18 +181,7 @@ if __name__ == "__main__":
         use_flash_attention_2=True,
     )
     tokenizer = AutoTokenizer.from_pretrained(script_args.model_name_or_path)
-    '''
-    if script_args.eos_padding:
-        tokenizer.pad_token = tokenizer.eos_token
-    else:
-        tokenizer.add_special_tokens({"pad_token": "[PAD]"})
-        model.config.vocab_size += 1
-        model_ref.config.vocab_size += 1
-        model.config.pad_token_id = tokenizer.pad_token_id
-        model_ref.config.pad_token_id = tokenizer.pad_token_id
-        model.resize_token_embeddings(len(tokenizer))
-        model_ref.resize_token_embeddings(len(tokenizer))
-    '''
+
     def tokenize(sample):
         tokenized_pos = tokenizer(sample["prompt"].replace("<bos>", "") + "\n" + sample["chosen"])
         tokenized_neg = tokenizer(sample["prompt"].replace("<bos>", "") + "\n" + sample["rejected"])
@@ -204,7 +191,7 @@ if __name__ == "__main__":
         sample["trejected_input_ids"] = tokenized_neg["input_ids"]
         return sample
 
-    # 2. Load the Stack-exchange paired dataset
+    # 2. Load the paired dataset
     train_dataset = prepare_data(
         tokenizer,
         data_dir=script_args.train_dir,
