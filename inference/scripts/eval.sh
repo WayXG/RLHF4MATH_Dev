@@ -17,7 +17,7 @@ NUM_TEST_SAMPLE=-1
 
 
 CUDA_VISIBLE_DEVICES=0 TOKENIZERS_PARALLELISM=false \
-python -um eval_infer.eval \
+python -um infer_data.infer_eval \
 --model_name_or_path ${MODEL_NAME_OR_PATH} \
 --data_name ${DATA_NAME} \
 --output_dir ${OUTPUT_DIR} \
@@ -34,7 +34,7 @@ python -um eval_infer.eval \
 DATA_NAME="math"
 
 CUDA_VISIBLE_DEVICES=0 TOKENIZERS_PARALLELISM=false \
-python -um eval_infer.eval \
+python -um infer_data.infer_eval \
 --model_name_or_path ${MODEL_NAME_OR_PATH} \
 --data_name ${DATA_NAME} \
 --output_dir ${OUTPUT_DIR} \
