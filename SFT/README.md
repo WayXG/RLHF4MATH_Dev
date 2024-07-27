@@ -31,7 +31,7 @@ conda activate sft
 
 # The test cuda version is 12.1, 12.2. You may need to update the torch version based on your cuda version...
 pip3 install torch==2.1.2 torchvision torchaudio
-pip install flash-attn
+pip install https://github.com/Dao-AILab/flash-attention/releases/download/v2.5.7/flash_attn-2.5.7+cu122torch2.1cxx11abiFALSE-cp310-cp310-linux_x86_64.whl
 
 ## Get axolotl for general model
 git clone https://github.com/OpenAccess-AI-Collective/axolotl
@@ -62,7 +62,7 @@ CUDA_VISIBLE_DEVICES="0,1,2,3,4,5,6,7" torchrun --nproc_per_node 8 --master_port
 
 You can also modify the learning rate, batch size, output_path.. with either command or modify the ScriptArguments in the gemma-7b-it.yml
 
-If you encounter out-of-memory issue. Running the code with Gemma-2b-it with deepspeed stage 3 and gradient checkpoint (set in the config).
+If you encounter out-of-memory issue. Running the code with Gemma-7b-it with deepspeed stage 3 and gradient checkpoint (set in the config).
 
 ```shell
 CUDA_VISIBLE_DEVICES="0,1,2,3" torchrun --nproc_per_node 4 --master_port 20001 -m axolotl.cli.train gemma-2b-it.yml --deepspeed ./sft_configs/sft_ds3.json
@@ -71,5 +71,5 @@ CUDA_VISIBLE_DEVICES="0,1,2,3" torchrun --nproc_per_node 4 --master_port 20001 -
 **REMARK: note that with deepspeed stage 3, the final mode saving does not work normally. We set the store strategy as epoch so we can store a normal model just before we finish the training for one epoch. If you modify the store stragety, you should set the save_every_steps as the total number of training steps - 1 so that the trainer will save a model for you just before finishing the training.**
 
 
-Finally, for the models without an official padding token (like Mistral), you may need to set the padding token by prepare_model.py first.
+Finally, for the models without an official padding token (like Mistral), you may need to set the padding token by ../useful_codes/prepare_model.py first.
 
