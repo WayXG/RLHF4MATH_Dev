@@ -21,49 +21,36 @@ from trl import DPOTrainer
 # Define and parse arguments.
 
 ############## HARD CODE
-def get_new(f, old_labels):
-    # We mask the user turn to create new labels for Gemma
+def get_new(input_ids, old_labels):
+    # We mask the user turn to create new labels
     labels = copy.deepcopy(old_labels)
-    #masks = copy.deepcopy(old_masks)
     start = False
-    for j in range(len(f)):
-        
-        if f[j:j+3] == [106, 1645, 108]:
+    for j in range(len(input_ids)):
+        if input_ids[j:j+3] == [106, 1645, 108]:
             start = True
-        if f[j:j+2] == [107, 108] and start:
+            labels[j:j+3] = -100
+        if input_ids[j:j+2] == [107, 108] and start:
             labels[j] = -100
             labels[j+1] = -100
-            #masks[j] = 0
-            #masks[j+1] = 0
             start = False
         if start:
             labels[j] = -100
-            #masks[j] = 0
     return labels
-############
 
 '''
-def get_new(f, old_labels):
-    # For mistral v3.0
-    #return old_labels
+def get_new(input_ids, old_labels):
+    # We mask the user turn to create new labels for Mistral model
     labels = copy.deepcopy(old_labels)
-    #masks = copy.deepcopy(old_masks)
     start = False
-    for j in range(len(f)):
-
-        if f[j] == 3:
+    for j in range(len(input_ids)):
+        if input_ids[j] == 3:
             start = True
-        if f[j] == 4 and start:
+            input_ids[j] = -100
+        if input_ids[j] == 4 and start:
             labels[j] = -100
-            #labels[j+1] = -100
-            #labels[j+2] = -100
-            #labels[j+3] = -100
-            #masks[j] = 0
-            #masks[j+1] = 0
             start = False
         if start:
             labels[j] = -100
-            #masks[j] = 0
     return labels
 '''
 
@@ -99,7 +86,6 @@ class PreferenceDataCollatorWithPadding:
             label_pad_token_id  for the prompt tokens.
         """
         batch = {}
-        #print(self.label_pad_token_id)
 
         if not self.is_encoder_decoder:
             chosen_tokens = self.tokenizer(chosen, add_special_tokens=False)
@@ -194,7 +180,6 @@ class PreferenceDataCollatorWithPadding:
         batch["rejected"] = prompt + rejected
         batch["chosen_response_only"] = chosen
         batch["rejected_response_only"] = rejected
-        #print(batch)
         return batch
 
     def collate(self, batch):
@@ -289,10 +274,10 @@ class PreferenceTrainer(DPOTrainer):
         nll_coefficient: float = 0,
         masking_user_turn: bool = True,
     ):
-        #################
+        ################# HARD CODE
         self.nll_coefficient = nll_coefficient  # dpo_loss + self.nll_coefficient * nll_loss on preferred response
         self.masking_user_turn = masking_user_turn  # whether we mask the user turn or not for implementing m-dpo
-        #################
+        
         
         if data_collator is None:
             data_collator = PreferenceDataCollatorWithPadding(
