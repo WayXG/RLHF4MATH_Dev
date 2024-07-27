@@ -44,6 +44,8 @@ def remove_ansi_escape_codes(text):
     """
     # ANSI escape codes start with the escape character followed by '['
     # and end with a lowercase or uppercase letter.
+    if not text:
+        return text
     ansi_escape = re.compile(r'\x1b\[[0-?]*[ -/]*[@-~]')
     return ansi_escape.sub('', text)
 
@@ -270,7 +272,10 @@ print(json.dumps(to_return))
                 print(prediction)
                 continue
             if dict_data['error_message']:
-                batch_results.append((get_error(dict_data['result']), ''))
+                if dict_data['result']:    
+                    batch_results.append((get_error(dict_data['result']), ''))
+                else:
+                    batch_results.append((dict_data['error_message'], ''))
             else:
                 batch_results.append((dict_data['result'], ''))
         #print(batch_results)
