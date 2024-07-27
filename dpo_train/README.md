@@ -54,20 +54,21 @@ Running the code before modify num_processes: 8 in zerox_for_dpo.yaml, the numbe
 accelerate launch --config_file zero2_for_dpo.yaml run_dpo.py 
 ```
 
-If you encounter out-of-memory issue. Running the code with Gemma-2b-it with zero2_for_dpo.yaml or reduce the max length of the data.
+If you encounter out-of-memory issue. Running the code with Gemma-7b-it with zero2_for_dpo.yaml or zero2_for_dpo.yaml. You can also reduce the max length of the data.
 
 
 ## Modification 
 
-Some of the modifications are currently hard coded in the codes and should be fixed later. We summarize them here. For all the modifications, you can search by ``HARD CODE'' to find them. 
+Some of the modifications are currently hard coded in the codes and should be fixed later. We summarize them here. For all the modifications, you can search by ``##### HARD CODE'' to find them. 
 
 ### User Turn Mask
 
-In dpo.py, we will detect all the user turn and set the label to be $-100$ so that the DPO trainer will ignore them. The current implementation is specialized for Gemma as we simply detect the chat template of Gemma: [106, 1645, 108], and [107, 108], corresponding to <star_of_turn>, <end_of_turn>...
+In dpo.py, we will detect all the user turn and set the label to be $-100$ so that the DPO trainer will ignore them. 
+
+The implementation for Gemma will simply detect the chat template of Gemma: [106, 1645, 108], and [107, 108], corresponding to <star_of_turn>, <end_of_turn>... 
 
 ```python
 ############## HARD CODE
-
 def get_new(f, old_labels):
     # We mask the user turn to create new labels
     labels = copy.deepcopy(old_labels)
@@ -77,17 +78,14 @@ def get_new(f, old_labels):
         
         if f[j:j+3] == [106, 1645, 108]:
             start = True
+            labels[j:j+3] = -100
         if f[j:j+2] == [107, 108] and start:
             labels[j] = -100
             labels[j+1] = -100
-            #masks[j] = 0
-            #masks[j+1] = 0
             start = False
         if start:
             labels[j] = -100
-            #masks[j] = 0
     return labels
-############
 ```
 
 - dpo.py: function get_new
