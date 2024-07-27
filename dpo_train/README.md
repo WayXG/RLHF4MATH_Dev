@@ -69,17 +69,15 @@ The implementation for Gemma will simply detect the chat template of Gemma: [106
 
 ```python
 ############## HARD CODE
-def get_new(f, old_labels):
+def get_new(input_ids, old_labels):
     # We mask the user turn to create new labels
     labels = copy.deepcopy(old_labels)
-    #masks = copy.deepcopy(old_masks)
     start = False
-    for j in range(len(f)):
-        
-        if f[j:j+3] == [106, 1645, 108]:
+    for j in range(len(input_ids)):
+        if input_ids[j:j+3] == [106, 1645, 108]:
             start = True
             labels[j:j+3] = -100
-        if f[j:j+2] == [107, 108] and start:
+        if input_ids[j:j+2] == [107, 108] and start:
             labels[j] = -100
             labels[j+1] = -100
             start = False
