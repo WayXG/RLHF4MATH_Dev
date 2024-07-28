@@ -257,6 +257,8 @@ if __name__ == "__main__":
         max_length=script_args.max_length,
         mask_prompt=script_args.mask_prompt,
         len_penalty=script_args.len_penalty,
+        nll_coefficient=0,
+        masking_user_turn=True,
     )
     print("begin to train")
 
