@@ -66,5 +66,16 @@ A new step begins and we stop either the model outputs the final answer or reach
 
 ## Running the Code
 
+To run the generation, the first step is to register the model as a server so that we can query it. You should first modify the scripts/register_server.sh according to your GPU setup. Then, run the following command with your model.
 
+```sh
+bash scripts/register_server.sh google/gemma-1.1-7b-it
+```
 
+Then, you can run the scripts/infer_eval.sh, which will generate trajectories with the model and evaluate the output.
+
+```sh
+bash scripts/infer_eval.sh gemma_7b
+```
+
+The iter_infer_to_collect_data.sh additionally takes a for loop to iteratively generate trajectories. 
