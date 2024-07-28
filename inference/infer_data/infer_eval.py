@@ -38,6 +38,8 @@ def parse_args():
     parser.add_argument("--max_tokens_per_call", default=1024, type=int)
     parser.add_argument("--shuffle", action="store_true")
     parser.add_argument("--ports", default=["8000", "8001", "8002", "8003", "8004", "8005", "8006", "8007"])
+    parser.add_argument("--horizon", default=6)
+
     args = parser.parse_args()
     args.top_p = 1 if args.temperature == 0 else args.top_p  # top_p must be 1 when using greedy sampling (vllm)
     return args
@@ -186,7 +188,7 @@ def main(args):
 
     end_prompts = []
 
-    max_func_call = 1 if args.prompt_type in ["cot", "pal"] else 6
+    max_func_call = 1 if args.prompt_type in ["cot", "pal"] else args.horizon
 
     # start inference, measure time use
     start_time = time.time()
