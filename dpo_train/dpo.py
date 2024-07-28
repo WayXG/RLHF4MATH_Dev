@@ -22,7 +22,7 @@ from trl import DPOTrainer
 
 ############## MODIFICATION
 def get_new(input_ids, old_labels):
-    # We mask the user turn to create new labels
+    # We mask the user turn to create new labels for Gemma model
     labels = copy.deepcopy(old_labels)
     start = False
     for j in range(len(input_ids)):
@@ -53,6 +53,7 @@ def get_new(input_ids, old_labels):
             labels[j] = -100
     return labels
 '''
+############## MODIFICATION END
 
 @dataclass
 class PreferenceDataCollatorWithPadding:
@@ -275,9 +276,12 @@ class PreferenceTrainer(DPOTrainer):
         masking_user_turn: bool = True,
     ):
         ################# MODIFICATION
-        self.nll_coefficient = nll_coefficient  # dpo_loss + self.nll_coefficient * nll_loss on preferred response
-        self.masking_user_turn = masking_user_turn  # whether we mask the user turn or not for implementing m-dpo
-        
+        # if nll_coefficient > 0, then dpo_loss + self.nll_coefficient * nll_loss on preferred response
+        self.nll_coefficient = nll_coefficient  
+        # whether we mask the user turn or not for implementing m-dpo, if not, it is a regular single-turn DPO
+        self.masking_user_turn = masking_user_turn  
+        ############## MODIFICATION END
+
         
         if data_collator is None:
             data_collator = PreferenceDataCollatorWithPadding(
@@ -462,7 +466,7 @@ class PreferenceTrainer(DPOTrainer):
             losses = losses + self.nll_coefficient * policy_nll_loss
         else:
             pass
-        #############
+        ############## MODIFICATION END
         reward_accuracies = (chosen_rewards > rejected_rewards).float()
 
         prefix = "eval_" if train_eval == "eval" else ""
