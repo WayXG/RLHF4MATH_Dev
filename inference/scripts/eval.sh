@@ -30,6 +30,14 @@ python -um infer_data.infer_eval \
 --top_p 1 \
 --start 0 \
 --end -1 \
+--horizon 4 \
+--ports "8001" \
+--ports "8002" \
+--ports "8003" \
+--ports "8004" \
+--eval eval \
+
+
 
 DATA_NAME="math"
 
@@ -47,4 +55,9 @@ python -um infer_data.infer_eval \
 --top_p 1 \
 --start 0 \
 --end -1 \
-                      
+--horizon 4 \
+--ports "8001" \
+--ports "8002" \
+--ports "8003" \
+--ports "8004" \
+--eval eval \     
