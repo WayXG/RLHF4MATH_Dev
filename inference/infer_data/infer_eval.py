@@ -37,8 +37,9 @@ def parse_args():
     parser.add_argument("--top_p", default=1, type=float)
     parser.add_argument("--max_tokens_per_call", default=1024, type=int)
     parser.add_argument("--shuffle", action="store_true")
-    parser.add_argument("--ports", default=["8000", "8001", "8002", "8003", "8004", "8005", "8006", "8007"])
-    parser.add_argument("--horizon", default=6)
+    parser.add_argument("--ports", action='append', default=[])
+    parser.add_argument("--horizon", default=6, type=int) # the maximal number of tool calls
+    parser.add_argument("--eval", default=False, type=bool) 
 
     args = parser.parse_args()
     args.top_p = 1 if args.temperature == 0 else args.top_p  # top_p must be 1 when using greedy sampling (vllm)
@@ -72,7 +73,7 @@ def prepare_data(args):
     os.makedirs(f"{args.output_dir}/{model_name}/{args.data_name}", exist_ok=True)
 
     # load all processed samples
-    # find the files in ./output/llm-agents/tora-code-34b-v1.0/math/
+    # find the files in e.g. ./output/gemma2/math/
     processed_files = [
         f
         for f in os.listdir(f"{args.output_dir}/{model_name}/{args.data_name}/")
@@ -81,14 +82,13 @@ def prepare_data(args):
     processed_samples = []
     for f in processed_files:
         processed_samples.extend(list(load_jsonl(f"{args.output_dir}/{model_name}/{args.data_name}/{f}")))
-    # print('aaa', f"{args.output_dir}/{model_name}/{args.data_name}/")
+
     # dedepulicate
     processed_samples = {sample["idx"]: sample for sample in processed_samples}
     processed_idxs = list(processed_samples.keys())
     processed_samples = list(processed_samples.values())
     total_examples = len(examples)
-    # if example has been inferenced...
-    # we can prepare a xx_idxs to control the data to be inferenced...
+    # if example has been inferenced with the same seed, temperature, and model, we skip them
     examples = [example for example in examples if example["idx"] not in processed_idxs]
     print(f"Idx {args.start} - {args.end}: Remain {len(examples)}/{total_examples} samples.")
     if len(examples) == 0:
@@ -101,12 +101,8 @@ def prepare_data(args):
 def main(args):
     ports = args.ports
     examples, processed_samples, out_file = prepare_data(args)
-
     # init python executor
-    if "pal" in args.prompt_type:
-        executor = PythonExecutor(get_answer_expr="solution()")
-    else:
-        executor = PythonExecutor(get_answer_from_stdout=True)
+    executor = PythonExecutor(get_answer_from_stdout=True)
     print(args.prompt_type)
 
     SamplingParams.seed = args.seed
@@ -188,7 +184,7 @@ def main(args):
 
     end_prompts = []
 
-    max_func_call = 1 if args.prompt_type in ["cot", "pal"] else args.horizon
+    max_func_call = 1 if args.prompt_type == "cot" else args.horizon
 
     # start inference, measure time use
     start_time = time.time()
@@ -226,15 +222,10 @@ def main(args):
             output = output.rstrip()
             # append the y_s to the current state (history)
             query += output
-            if args.prompt_type == "pal":
-                remain_prompts.append((i, query))
-                if "```python" in output:
-                    output = extract_program(query)
-                remain_codes.append(output)
-            elif args.prompt_type == "cot":
+            if args.prompt_type == "cot":
                 # for cot, the prompt ends for one round
                 end_prompts.append((i, query))
-            elif "boxed" not in output and output.endswith("```"):
+            elif "boxed" not in output and "```python" in output: #output.endswith("```"):
                 # the model does not output the final answer, meanwhile, a code needs to be executed
                 program = extract_program(query)
                 remain_prompts.append((i, query))
@@ -249,16 +240,14 @@ def main(args):
             i, query = remain_prompts[k]
             res, report = remain_results[k]
             exec_result = res if res else report
-            # for pot, there is only one round and we use the output of the code as the final answer
-            if "pal" in args.prompt_type:
-                exec_result = "\\boxed{" + exec_result + "}"
-            # for tora format, we add the observation to the history
+            # we add the observation to the history
             if "gemma" in args.model_name_or_path:
                 exec_result = f"<end_of_turn>\n<start_of_turn>user\n```output\n{exec_result}\n```<end_of_turn>\n<start_of_turn>model\n"
             elif "mistral" in args.model_name_or_path:
                 exec_result = f"</s> [INST] ```output\n{exec_result}\n``` [/INST]"
             elif "deepseek" in args.model_name_or_path:
                 #exec_result = f"<｜end▁of▁sentence｜>User: ```output\n{exec_result}\n```\n\nAssistant:"
+                #for deepseek, we directly append the observation as the training of deepseek
                 exec_result = f"\n```output\n{exec_result}\n```\n"
             else:
                 raise NotImplementedError(args.prompt_type + "and " + args.model_name_or_path)
@@ -308,13 +297,15 @@ def main(args):
     all_samples.extend(processed_samples)
     save_jsonl(all_samples, out_file)
 
-    result_str = evaluate(samples=all_samples, data_name=args.data_name, prompt_type=args.prompt_type, execute=True)
-    result_str += f"\nTime use: {time_use:.2f}s"
-    time_str = f"{int(time_use // 60)}:{int(time_use % 60):02d}"
-    result_str += f"\nTime use: {time_str}"
+    # Evaluate the result
+    if args.eval:
+        result_str = evaluate(samples=all_samples, data_name=args.data_name, prompt_type=args.prompt_type, execute=True)
+        result_str += f"\nTime use: {time_use:.2f}s"
+        time_str = f"{int(time_use // 60)}:{int(time_use % 60):02d}"
+        result_str += f"\nTime use: {time_str}"
 
-    with open(out_file.replace(".jsonl", f"_{args.prompt_type}.metrics"), "w") as f:
-        f.write(result_str)
+        with open(out_file.replace(".jsonl", f"_{args.prompt_type}.metrics"), "w") as f:
+            f.write(result_str)
 
 
 if __name__ == "__main__":
