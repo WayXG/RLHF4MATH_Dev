@@ -20,7 +20,7 @@ from trl import DPOTrainer
 
 # Define and parse arguments.
 
-############## HARD CODE
+############## MODIFICATION
 def get_new(input_ids, old_labels):
     # We mask the user turn to create new labels
     labels = copy.deepcopy(old_labels)
@@ -155,7 +155,7 @@ class PreferenceDataCollatorWithPadding:
             rejected_sequence_tokens["labels"][: len(prompt_tokens["input_ids"])] = [self.label_pad_token_id] * len(
                 prompt_tokens["input_ids"]
             )
-            ############ HARD CODE
+            ############ MODIFICATION
             if self.mask_user_turn:
                 new_chosen_sequence_labels= get_new(chosen_sequence_tokens['input_ids'], chosen_sequence_tokens['labels'])            
                 new_rej_sequence_labels = get_new(rejected_sequence_tokens['input_ids'], rejected_sequence_tokens['labels'])
@@ -274,7 +274,7 @@ class PreferenceTrainer(DPOTrainer):
         nll_coefficient: float = 0,
         masking_user_turn: bool = True,
     ):
-        ################# HARD CODE
+        ################# MODIFICATION
         self.nll_coefficient = nll_coefficient  # dpo_loss + self.nll_coefficient * nll_loss on preferred response
         self.masking_user_turn = masking_user_turn  # whether we mask the user turn or not for implementing m-dpo
         
@@ -457,7 +457,7 @@ class PreferenceTrainer(DPOTrainer):
             margin=margin,
             len_penalty=len_penalty,
         )
-        ############## HARD CODE
+        ############## MODIFICATION
         if self.nll_coefficient > 0:
             losses = losses + self.nll_coefficient * policy_nll_loss
         else:
