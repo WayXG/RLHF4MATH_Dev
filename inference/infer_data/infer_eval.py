@@ -257,7 +257,8 @@ def main(args):
             elif "mistral" in args.model_name_or_path:
                 exec_result = f"</s> [INST] ```output\n{exec_result}\n``` [/INST]"
             elif "deepseek" in args.model_name_or_path:
-                exec_result = f"<｜end▁of▁sentence｜>User: ```output\n{exec_result}\n```\n\nAssistant:"
+                #exec_result = f"<｜end▁of▁sentence｜>User: ```output\n{exec_result}\n```\n\nAssistant:"
+                exec_result = f"\n```output\n{exec_result}\n```\n"
             else:
                 raise NotImplementedError(args.prompt_type + "and " + args.model_name_or_path)
 
