@@ -973,7 +973,7 @@ class DPOTrainer(Trainer):
             label_pad_token_id=self.label_pad_token_id,
         )
 
-        ###################### HARD CODE
+        ###################### MODIFICATION
         def cross_entropy_loss(logits, labels):
             if not self.is_encoder_decoder:
                 # Shift so that tokens < n predict n
@@ -990,7 +990,7 @@ class DPOTrainer(Trainer):
 
         labels = concatenated_batch["concatenated_labels"].clone()
         nll_loss = cross_entropy_loss(all_logits[:len_chosen], labels[:len_chosen])
-        #########################################
+        ######################## MODIFICATION END
 
         chosen_logps = all_logps[:len_chosen]
         rejected_logps = all_logps[len_chosen:]
