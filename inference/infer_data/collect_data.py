@@ -1,7 +1,6 @@
 """
-This script support vllm batch inference with cot/pal/tora prompt.
-Also sopport inference of fine-tuned models like WizardMath/ToRA.
-Code based on: https://github.com/microsoft/ProphetNet/tree/master/CRITIC
+This scrip support is adapted from Tora project and supports multi-rounds vllm inference.
+The inference is formulated as a multi-turn chat and the model should be registered as a server by scripts/register_server.sh first.
 """
 
 import argparse
