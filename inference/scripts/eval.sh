@@ -31,10 +31,14 @@ python -um infer_data.infer_eval \
 --start 0 \
 --end -1 \
 --horizon 4 \
+--ports "8000" \
 --ports "8001" \
 --ports "8002" \
 --ports "8003" \
 --ports "8004" \
+--ports "8005" \
+--ports "8006" \
+--ports "8007" \
 --eval eval \
 
 
@@ -56,8 +60,12 @@ python -um infer_data.infer_eval \
 --start 0 \
 --end -1 \
 --horizon 4 \
+--ports "8000" \
 --ports "8001" \
 --ports "8002" \
 --ports "8003" \
 --ports "8004" \
+--ports "8005" \
+--ports "8006" \
+--ports "8007" \
 --eval eval \     
