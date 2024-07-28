@@ -33,7 +33,9 @@ huggingface-cli login
 
 **Hack DPO Trainer**
 
-Now we need to hack the DPO trainer to implement some additional functions. See **Modification** below for details. 
+Now we need to hack the DPO trainer to implement some additional functions. 
+
+We highlight the modified part with ############## MODIFICATION.
 
 ```sh
 # Step 1: find the original DPO trainer
@@ -48,78 +50,14 @@ mv dpo_train/dpo_trainer.py anaconda3/envs/dpo_train/lib/python3.10/site-package
 
 ## Running the Code
 
-Running the code before modify num_processes: 8 in zerox_for_dpo.yaml, the number 8 means that you will use 8 GPUs. The parameters, models, and datasets are provided in run_dpo.py.
+Running the code before modify num_processes: 8 in ./training_configs/zero2_pf.yaml, the number 8 means that you will use 8 GPUs. Also modify the parameters, models, and datasets provided in run_dpo.py.
 
 ```shell
 accelerate launch --config_file zero2_for_dpo.yaml run_dpo.py 
 ```
 
-If you encounter out-of-memory issue. Running the code with Gemma-7b-it with zero2_for_dpo.yaml or zero2_for_dpo.yaml. You can also reduce the max length of the data.
+If you encounter out-of-memory issue. Running the code with Gemma-7b-it with zero3_pf.yaml. You can also reduce the max length of the data.
 
 
 ## Modification 
-
-Some of the modifications are currently hard coded in the codes and should be fixed later. We summarize them here. For all the modifications, you can search by ``##### HARD CODE'' to find them. 
-
-### User Turn Mask
-
-In dpo.py, we will detect all the user turn and set the label to be $-100$ so that the DPO trainer will ignore them. 
-
-The implementation for Gemma will simply detect the chat template of Gemma: [106, 1645, 108], and [107, 108], corresponding to <star_of_turn>, <end_of_turn>... 
-
-```python
-############## HARD CODE
-def get_new(input_ids, old_labels):
-    # We mask the user turn to create new labels
-    labels = copy.deepcopy(old_labels)
-    start = False
-    for j in range(len(input_ids)):
-        if input_ids[j:j+3] == [106, 1645, 108]:
-            start = True
-            labels[j:j+3] = -100
-        if input_ids[j:j+2] == [107, 108] and start:
-            labels[j] = -100
-            labels[j+1] = -100
-            start = False
-        if start:
-            labels[j] = -100
-    return labels
-```
-
-- dpo.py: function get_new
-- dpo.py: tokenize_batch_element
-
-### Additional NLL Loss
-
-We additionally add an NLL loss into the dpo training. To do this, we hack the dpo_loss function in dpo.py.
-
-```python
-############## HARD CODE
-losses = losses + 1.0 * policy_nll_loss # change the coefficient of NLL loss here.
-#############
-```
-
-where the NLL loss in computed in the hacked dpo_trainer.py. 
-
-
-```python
-############## HARD CODE
-def cross_entropy_loss(logits, labels):
-    if not self.is_encoder_decoder:
-        # Shift so that tokens < n predict n
-        logits = logits[..., :-1, :].contiguous()
-        labels = labels[..., 1:].contiguous()
-    # Flatten the tokens
-    loss_fct = nn.CrossEntropyLoss()
-    logits = logits.view(-1, logits.shape[-1])
-    labels = labels.view(-1)
-    # Enable model parallelism
-    labels = labels.to(logits.device)
-    loss = loss_fct(logits, labels)
-    return loss
-
-labels = concatenated_batch["concatenated_labels"].clone()
-nll_loss = cross_entropy_loss(all_logits[:len_chosen], labels[:len_chosen])
-```
-
 
