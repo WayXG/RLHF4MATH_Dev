@@ -1,3 +1,4 @@
+# This script finds all the files ending with jsonl and merge them into one dataset 
 import os
 from datasets import load_dataset
 import json
@@ -8,9 +9,7 @@ all_folder_path = [
         './7b_sft1epoch_gen_data/iter1'
 ]
 
-
 output_dir='all_math.json'
-
 
 all_data = []
 for folder_path in all_folder_path:
@@ -19,7 +18,6 @@ for folder_path in all_folder_path:
         ds_test = load_dataset('json', data_files=dir_, split='train')
         for sample in ds_test:
             all_data.append(sample)
-
 
 output_eval_dataset = {}
 output_eval_dataset["type"] = "text_only"
