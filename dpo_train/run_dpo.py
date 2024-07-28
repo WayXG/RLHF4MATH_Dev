@@ -2,7 +2,6 @@ import os
 from dataclasses import dataclass, field
 from typing import Optional
 
-import numpy as np
 import torch
 from datasets import Dataset, load_dataset
 from dpo import PreferenceTrainer
@@ -25,7 +24,7 @@ class ScriptArguments:
 
     # training parameters
     model_name_or_path: Optional[str] = field(
-        default="RLHF4MATH/Gemma-7B-it-SFT3epoch", 
+        default="RLHF4MATH/Gemma-7B-it-SFT3epoch",
         metadata={"help": "the location of the model name or path"},
     )
     ref_model: Optional[str] = field(
@@ -37,13 +36,11 @@ class ScriptArguments:
         metadata={"help": "the location of the dataset name or path"},
     )
     eval_dir: Optional[str] = field(
-        default="RLHF4MATH/Gemma-7B-1.1-it-iter1-random-pairs", 
+        default="RLHF4MATH/Gemma-7B-1.1-it-iter1-random-pairs",
         metadata={"help": "the location of the evalset name or path"},
     )
     learning_rate: Optional[float] = field(default=4e-7, metadata={"help": "optimizer learning rate"})
-    lr_scheduler_type: Optional[str] = field(
-        default="cosine", metadata={"help": "the lr scheduler type"}
-    )
+    lr_scheduler_type: Optional[str] = field(default="cosine", metadata={"help": "the lr scheduler type"})
     warmup_steps: Optional[int] = field(default=50, metadata={"help": "the number of warmup steps"})
     weight_decay: Optional[float] = field(default=0.01, metadata={"help": "the weight decay"})
     optimizer_type: Optional[str] = field(default="paged_adamw_32bit", metadata={"help": "the optimizer type"})
@@ -74,7 +71,9 @@ class ScriptArguments:
     eval_steps: Optional[int] = field(default=300, metadata={"help": "the evaluation frequency"})
     run_name: Optional[str] = field(default="mdpo_iter1_gemma7b_lr4e7_bz32", metadata={"help": "the run name"})
     loss_type: Optional[str] = field(default="sigmoid", metadata={"help": "the loss type"})
-    output_dir: Optional[str] = field(default="./mdpo_iter1_gemma7b_lr4e7_bz32", metadata={"help": "the output directory"})
+    output_dir: Optional[str] = field(
+        default="./mdpo_iter1_gemma7b_lr4e7_bz32", metadata={"help": "the output directory"}
+    )
     log_freq: Optional[int] = field(default=2, metadata={"help": "the logging frequency"})
 
     # instrumentation
@@ -104,6 +103,9 @@ class ScriptArguments:
     mask_prompt: Optional[bool] = field(default=False, metadata={"help": "mask prompt"})
     len_penalty: Optional[float] = field(default=0, metadata={"help": "the length penalty"})
 
+    masking_user_turn: Optional[bool] = field(default=True, metadata={"help": "mask user turn"})
+    nll_coefficient: Optional[float] = field(default=0, metadata={"help": "the coefficeint of NLL loss"})
+
 
 def prepare_data(
     tokenizer,
@@ -116,36 +118,38 @@ def prepare_data(
     eot_token="",
     length_penalty=0,
 ) -> Dataset:
-    """Prepare the dataset for DPO training.
-    The margin is not used currently and may be activated later.
+    """Prepare the dataset for DPO training. The input datasets are supposed to be in the standard format with keys chosen and rejected.
+    The margin is not used currently and may be activated later for future research.
+
+    [ { "content": "If a 40-foot tree is casting a 10-foot shadow, and Andrea is casting a 15-inch shadow at the same time, how tall is Andrea in inches?", "role": "user" },
+    { "content": "The shadow of the tree is 10 feet which is 120 inches.\nSo let's set *tree height* = 40 feet = 40 * 12 inches\n*tree shadow* = 10 feet = 120 inches\n*Andrea's shadow* = 15 inches\nFrom the similar triangles, we can find Andrea's height.\n```python\ntree_height = 40 * 12 # tree is 40 feet which is 40 * 12 inches\ntree_shadow = 10 * 12 # tree shadow is 10 feet = 120 inches\nandrea_shadow = 15 # Andrea's shadow is 15 inches\n\n# Find Andrea's height using similar triangles\nandrea_height = andrea_shadow * (tree_height / tree_shadow)\nandrea_height\n```", "role": "assistant" },
+    { "content": "```output\n60.0\n```", "role": "user" },
+    { "content": "So Andrea is $\\boxed{60}$ inches tall.", "role": "assistant" } ]
     """
-    ds = load_dataset(data_dir, split='train')
+    ds = load_dataset(data_dir, split="train")
     ds = ds.shuffle(seed=42)
     print(ds)
 
     pos = []
     neg = []
     prompts = []
-    cc = 0
     margin = []
     for sample in ds:
-        chosen = sample['chosen']
-        rejected = sample['rejected']
+        chosen = sample["chosen"]
+        rejected = sample["rejected"]
         prompt = tokenizer.apply_chat_template([chosen[0]], tokenize=False, add_generation_prompt=True)
         prompt2 = tokenizer.apply_chat_template([rejected[0]], tokenize=False, add_generation_prompt=True)
         if prompt != prompt2:
-            cc += 1
-            continue 
-          
-        #assert prompt == prompt2
+            continue
+
+        # assert prompt == prompt2
         chosen_str = tokenizer.apply_chat_template(chosen, tokenize=False).replace(prompt, "")
         rejected_str = tokenizer.apply_chat_template(rejected, tokenize=False).replace(prompt, "")
         prompts.append(prompt)
         pos.append(chosen_str)
         neg.append(rejected_str)
-        margin.append(0.5)
+        margin.append(0.5) # not used so far
     dataset = Dataset.from_dict({"prompt": prompts, "chosen": pos, "rejected": neg, "margin": margin})
-    print(cc, "prompts are not the same)
     if sanity_check:
         dataset = dataset.select(range(min(len(dataset), 100)))
 
@@ -181,15 +185,6 @@ if __name__ == "__main__":
         use_flash_attention_2=True,
     )
     tokenizer = AutoTokenizer.from_pretrained(script_args.model_name_or_path)
-
-    def tokenize(sample):
-        tokenized_pos = tokenizer(sample["prompt"].replace("<bos>", "") + "\n" + sample["chosen"])
-        tokenized_neg = tokenizer(sample["prompt"].replace("<bos>", "") + "\n" + sample["rejected"])
-        prompt_id = tokenizer(sample["prompt"])
-        sample["tprompdt_ids"] = prompt_id["input_ids"]
-        sample["tchosen_input_ids"] = tokenized_pos["input_ids"]
-        sample["trejected_input_ids"] = tokenized_neg["input_ids"]
-        return sample
 
     # 2. Load the paired dataset
     train_dataset = prepare_data(
@@ -238,7 +233,7 @@ if __name__ == "__main__":
         bf16=True,
         remove_unused_columns=False,
         run_name=script_args.run_name,
-        save_only_model=True
+        save_only_model=True,
     )
     print(training_args)
 
@@ -257,8 +252,8 @@ if __name__ == "__main__":
         max_length=script_args.max_length,
         mask_prompt=script_args.mask_prompt,
         len_penalty=script_args.len_penalty,
-        nll_coefficient=0,
-        masking_user_turn=True,
+        nll_coefficient=script_args.nll_coefficient,
+        masking_user_turn=script_args.masking_user_turn,
     )
     print("begin to train")
 
