@@ -4,17 +4,19 @@ if [ $# -eq 0 ]; then
 fi
 MODEL_NAME_OR_PATH=$1
 
+#DATA_LIST = ['math', 'gsm8k']
+
 DATA_NAME="gsm8k"
 
-OUTPUT_DIR="./output1"
+OUTPUT_DIR="./collect_data"
 
-SPLIT="test"
+SPLIT="train"
 PROMPT_TYPE="tora"
 NUM_TEST_SAMPLE=-1
 
 
 CUDA_VISIBLE_DEVICES=0 TOKENIZERS_PARALLELISM=false \
-python -um infer_data.collect_data \
+python -um infer_data.infer_eval \
 --model_name_or_path ${MODEL_NAME_OR_PATH} \
 --data_name ${DATA_NAME} \
 --output_dir ${OUTPUT_DIR} \
@@ -27,4 +29,14 @@ python -um infer_data.collect_data \
 --top_p 1 \
 --start 0 \
 --end -1 \
-    
+--horizon 6 \
+--ports "8000" \
+--ports "8001" \
+--ports "8002" \
+--ports "8003" \
+--ports "8004" \
+--ports "8005" \
+--ports "8006" \
+--ports "8007" \
+
+
