@@ -59,7 +59,7 @@ max_completion_length: Optional[int] = 2048
 Running the code before modify num_processes: 8 in ./training_configs/zero2_pf.yaml, the number 8 means that you will use 8 GPUs. Also modify the parameters, models, and datasets provided in run_kto.py and kto_config.py
 
 ```shell
-bash run_kto.py
+bash run_kto.sh
 ```
 
 If you encounter out-of-memory issue. Running the code with Gemma-7b-it with zero3_pf.yaml. You can also reduce the max length of the data.
