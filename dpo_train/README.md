@@ -53,7 +53,7 @@ mv dpo_train/dpo_trainer.py anaconda3/envs/dpo_train/lib/python3.10/site-package
 Running the code before modify num_processes: 8 in ./training_configs/zero2_pf.yaml, the number 8 means that you will use 8 GPUs. Also modify the parameters, models, and datasets provided in run_dpo.py.
 
 ```shell
-accelerate launch --config_file zero2_for_dpo.yaml run_dpo.py 
+accelerate launch --config_file ./training_configs/zero2_pf.yaml run_dpo.py 
 ```
 
 If you encounter out-of-memory issue. Running the code with Gemma-7b-it with zero3_pf.yaml. You can also reduce the max length of the data.
