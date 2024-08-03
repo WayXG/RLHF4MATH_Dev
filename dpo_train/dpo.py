@@ -21,38 +21,34 @@ from trl import DPOTrainer
 # Define and parse arguments.
 
 ############## MODIFICATION
-def get_new(input_ids, old_labels):
+def get_new(input_ids, old_labels, model='gemma'):
     # We mask the user turn to create new labels for Gemma model
     labels = copy.deepcopy(old_labels)
     start = False
-    for j in range(len(input_ids)):
-        if input_ids[j:j+3] == [106, 1645, 108]:
-            start = True
-            labels[j:j+3] = -100
-        if input_ids[j:j+2] == [107, 108] and start:
-            labels[j] = -100
-            labels[j+1] = -100
-            start = False
-        if start:
-            labels[j] = -100
+    if 'gemma' in model:
+        for j in range(len(input_ids)):
+            if input_ids[j:j+3] == [106, 1645, 108]:
+                start = True
+                labels[j:j+3] = -100
+            if input_ids[j:j+2] == [107, 108] and start:
+                labels[j] = -100
+                labels[j+1] = -100
+                start = False
+            if start:
+                labels[j] = -100
+    elif 'mistral' in model:
+        for j in range(len(input_ids)):
+            if input_ids[j] == 3:
+                start = True
+                input_ids[j] = -100
+            if input_ids[j] == 4 and start:
+                labels[j] = -100
+                start = False
+            if start:
+                labels[j] = -100
+    else:
+        raise NotImplementedError(model)
     return labels
-
-'''
-def get_new(input_ids, old_labels):
-    # We mask the user turn to create new labels for Mistral model
-    labels = copy.deepcopy(old_labels)
-    start = False
-    for j in range(len(input_ids)):
-        if input_ids[j] == 3:
-            start = True
-            input_ids[j] = -100
-        if input_ids[j] == 4 and start:
-            labels[j] = -100
-            start = False
-        if start:
-            labels[j] = -100
-    return labels
-'''
 ############## MODIFICATION END
 
 @dataclass
