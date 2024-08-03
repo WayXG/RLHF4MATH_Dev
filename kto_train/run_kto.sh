@@ -1,4 +1,4 @@
-accelerate launch --config_file ./training_configs/zero2.yaml run_kto.py \
+accelerate launch --config_file ./training_configs/zero2_pf.yaml run_kto.py \
     --model_name_or_path=xxx \
     --per_device_train_batch_size 1 \
     --num_train_epochs 1 \
