@@ -33,9 +33,7 @@ huggingface-cli login
 
 **Hack DPO Trainer**
 
-Now we need to hack the DPO trainer to implement some additional functions. 
-
-We highlight the modified part with ############## MODIFICATION.
+The code is based on RLHFlow/Online-RLHF but we need to hack the KTO trainer to implement some additional functions. We highlight the modified part with ############## MODIFICATION.
 
 ```sh
 # Step 1: find the original DPO trainer
