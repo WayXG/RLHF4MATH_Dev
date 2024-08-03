@@ -31,9 +31,9 @@ wandb login
 huggingface-cli login
 ```
 
-**Hack DPO Trainer**
+**Hack KTO Trainer**
 
-Now we need to hack the DPO trainer to implement some additional functions. 
+Now we need to hack the KTO trainer to implement some additional functions. 
 
 We highlight the modified part with ############## MODIFICATION.
 
@@ -42,18 +42,24 @@ We highlight the modified part with ############## MODIFICATION.
 cd anaconda3/envs/dpo_train/lib/python3.10/site-packages/trl/trainer/
 
 # Step 2: delete the old one
-rm dpo_trainer.py
+rm kto_trainer.py
 
 # Step 3: use the modified one in this repo. The following command need to be modified to use the correct address 
-mv dpo_train/dpo_trainer.py anaconda3/envs/dpo_train/lib/python3.10/site-packages/trl/trainer/dpo_trainer.py
+mv kto_train/kto_trainer.py anaconda3/envs/dpo_train/lib/python3.10/site-packages/trl/trainer/kto_trainer.py
+
+# Step 4: modify the KTO config according to your GPU resource.
+vim /trl/trainer/kto_config.py
+max_length: Optional[int] = 2048
+max_prompt_length: Optional[int] = 1000
+max_completion_length: Optional[int] = 2048
 ```
 
 ## Running the Code
 
-Running the code before modify num_processes: 8 in ./training_configs/zero2_pf.yaml, the number 8 means that you will use 8 GPUs. Also modify the parameters, models, and datasets provided in run_dpo.py.
+Running the code before modify num_processes: 8 in ./training_configs/zero2_pf.yaml, the number 8 means that you will use 8 GPUs. Also modify the parameters, models, and datasets provided in run_kto.py and kto_config.py
 
 ```shell
-accelerate launch --config_file zero2_for_dpo.yaml run_dpo.py 
+bash run_kto.py
 ```
 
 If you encounter out-of-memory issue. Running the code with Gemma-7b-it with zero3_pf.yaml. You can also reduce the max length of the data.
