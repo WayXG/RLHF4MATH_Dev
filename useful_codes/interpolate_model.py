@@ -10,7 +10,7 @@ import sys
 from transformers import HfArgumentParser, AutoModelForCausalLM
 import argparse
 
-parser = argparse.ArgumentParser(description="处理模型的Python脚本")
+parser = argparse.ArgumentParser(description="merge model checkpoints")
 parser.add_argument("--base_model", type=str, required=True, help="dir of base model")
 parser.add_argument("--new_model", type=str, required=True, help="dir of new model")
 parser.add_argument("--output_dir", type=str, required=True, help="output dir")
