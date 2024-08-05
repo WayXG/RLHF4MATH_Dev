@@ -131,6 +131,12 @@ ds_new = ds_new.filter(filter_too_long_pred, num_proc=32)
 
 
 # Step 5: output the filtered dataset
+
+# we delete the columns that are unnecessary
+columns_to_keep = ["idx", "gt", "level", "type", "messages", "pred"]
+ds_new = ds_new.remove_columns([col for col in dataset.column_names if col not in columns_to_keep])
+
+
 if ".json" in args.output_dir:
     all_data = [sample for sample in ds_new]
     output_eval_dataset = {}
