@@ -11,6 +11,9 @@ def load_data(data_name, split, data_dir='./data'):
     else:
         if data_name == "math":
             dataset = load_dataset("competition_math", split=split, name="main", cache_dir=f"{data_dir}/temp")
+        elif "RLHF4MATH/prompt_iter" in data_name:
+            # if we use the pre-processed prompts
+            dataset = load_dataset(data_name, split=split)
         elif data_name == "theorem-qa":
             dataset = load_dataset("wenhu/TheoremQA", split=split)
         elif data_name == "gsm8k":
