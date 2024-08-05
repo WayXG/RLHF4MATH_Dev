@@ -95,6 +95,24 @@ def filter_example1(example):
         if "```output\n[]" in mes["content"]:
             return False
 
+        if "traitlets" in mes['content'] and 'error' in mes['content'].lower():
+            return False
+        if "sympy.core.numbers" in mes['content'] and 'error' in mes['content'].lower():
+            return False
+        if 'sympy.tensor.tensor' in mes['content'] and 'error' in mes['content']:
+            return False
+        if 'minlex() got an' in mes['content']:
+            return False
+        if 'No module named' in mes['content'] and 'sympy.' in mes['content']:
+            return False
+        if 'object is not subscriptable' in mes['content'].lower():
+            return False
+    
+        # We delete the samples that reach max function call
+        # it does not influence the final result but can significantly accelerate the training process
+        if 'Reach max function call' in mes['content']:
+            return False
+
     return True
 
 ds_new = ds_new.filter(filter_example1, num_proc=32)
