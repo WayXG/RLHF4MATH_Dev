@@ -31,12 +31,10 @@ It is recommended to have three separate environments for **sft**, **inference**
 If you find the content of this repo useful, please consider cite it as follows:
 
 ```bibtex
-@misc{dong2024rlhf,
-      title={Online Iterative Direct Preference Learning for Multi-turn Mathematical Reasoning with External Tools}, 
-      author={XX},
-      year={2024},
-      eprint={2405.07863},
-      archivePrefix={arXiv},
-      primaryClass={cs.LG}
+@article{xiong2024building,
+  title={Building Math Agents with Multi-Turn Iterative Preference Learning},
+  author={Xiong, Wei and Shi, Chengshuai and Shen, Jiaming and Rosenberg, Aviv and Qin, Zhen and Calandriello, Daniele and Khalman, Misha and Joshi, Rishabh and Piot, Bilal and Saleh, Mohammad and others},
+  journal={arXiv preprint arXiv:2409.02392},
+  year={2024}
 }
 ```
