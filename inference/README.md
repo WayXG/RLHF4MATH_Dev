@@ -14,20 +14,26 @@ Before starting, please make sure your linux machine has nvidia-cuda-toolkit ins
 ```sh
 conda create -n infer python=3.10.9
 conda activate infer
-pip install datasets
-pip install accelerate==0.27.2
-pip install deepspeed
+# You may check nvcc -V , if no nvcc exists, you may run the following code
+# conda install nvidia/label/cuda-12.2.0::cuda-nvcc
 
-# The following code is tested for CUDA12.1-12.2. You may need to update the torch and flash-attention sources according to your own CUDA version
-pip install https://github.com/vllm-project/vllm/releases/download/v0.5.1/vllm-0.5.1-cp310-cp310-manylinux1_x86_64.whl
-pip install https://github.com/flashinfer-ai/flashinfer/releases/download/v0.0.9/flashinfer-0.0.9+cu121torch2.3-cp310-cp310-linux_x86_64.whl
+pip install datasets
+
+# The following code is tested for CUDA12.0-12.2 and CUDA12.6
+# To develop llama-3, mistral, gemma-1, 1.1, 2, deepseek you can consider the following vllm version
+pip install vllm==0.5.4
+
+pip install accelerate==0.33.0
+pip install deepspeed==0.14.5
+pip install numpy==1.26.4 #Note that the numpy version should be `numpy<2.0`.  `Numpy 2.0` will encounter unexpected issues!!!
+
 
 huggingface-cli login
 pip install pebble
 pip install timeout_decorator
 pip install ipython
-sympy==1.12
-antlr4-python3-runtime==4.11 # The versions of sympy and antlr4 cannot be modified!!!!!
+pip install sympy==1.12
+pip install antlr4-python3-runtime==4.11 # The versions of sympy and antlr4 cannot be modified!!!!!
 ```
 
 ## The General Process of Inference
