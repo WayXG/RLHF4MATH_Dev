@@ -468,24 +468,6 @@ def parse_conversation(example):
 
 ds_new = ds_new.map(parse_conversation, num_proc=32)
 
-##########
-# import signal
-
-# 定义一个超时的异常类
-# class TimeoutException(Exception):
-#    pass
-
-# 超时的处理函数
-# def timeout_handler(signum, frame):
-#    raise TimeoutException
-
-# 设置信号和处理函数
-# signal.signal(signal.SIGALRM, timeout_handler)
-
-# 设置超时时间（以秒为单位）
-
-
-#########
 
 
 def is_correct(example):
@@ -503,15 +485,6 @@ def is_correct(example):
         pass
 
     try:
-        # if check1(a, b):
-        # signal.signal(signal.SIGALRM, timeout_handler)
-
-        # 设置超时时间（以秒为单位）
-        # timeout_seconds = 1  # 10毫秒
-
-        # try:
-        # 启动计时器
-        # signal.alarm(timeout_seconds)
 
         if math_equal(a, b):
             # if z == True:
@@ -549,14 +522,6 @@ def is_correct(example):
     # raise NotImplementedError()
     # gt_ans = strip_string(gt_ans)
     return {"is_correct": is_correct_label}
-
-
-# j = 0
-# for sample in ds_new:
-# math_equal(sample['gt'], sample['pred'][0])
-# print(j)
-# if j == 42879:
-#    print(sampl
 
 
 def filter_example1(example):
@@ -599,13 +564,7 @@ from transformers import AutoTokenizer, HfArgumentParser
 
 print("############### Answer check")
 tokenizer = AutoTokenizer.from_pretrained("google/gemma-1.1-7b-it")
-# j = 0
-# for sample in ds_new:
-# math_equal(sample['gt'], sample['pred'][0])
-# print(j)
-# if j == 42879:
-#    print(sample)
-# j += 1
+
 
 
 def filter_too_long_pred(example):
