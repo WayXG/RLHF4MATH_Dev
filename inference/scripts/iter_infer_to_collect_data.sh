@@ -36,5 +36,5 @@ python -um infer_data.infer_eval \
 --ports "8004" \
 --ports "8005" \
 --ports "8006" \
---ports "8007" \
+--ports "8007" 
 done
