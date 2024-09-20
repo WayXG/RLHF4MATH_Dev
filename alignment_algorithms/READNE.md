@@ -1,5 +1,7 @@
 # DPO/KTO Training with Multi-turn Data
 
+We provide a tentative implementation here. Comparedto the original DPO/KTO, we only need to modify the mask of the samples to mask out all the external tokens. You can read the "get_new_mask" function in dpo_trainer or kto_trainer to get the idea.
+
 
 ## 1 Installation instructions
 
