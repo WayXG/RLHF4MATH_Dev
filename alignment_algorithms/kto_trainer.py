@@ -55,7 +55,7 @@ from .utils import (
 
 
 ############## MODIFICATION
-def get_new(input_ids, old_labels, model='gemma'):
+def get_new_mask(input_ids, old_labels, model='gemma'):
     # We mask the user turn to create new labels for Gemma model
     labels = copy.deepcopy(old_labels)
     start = False
@@ -264,7 +264,7 @@ def _process_tokens(example: Dict[str, Any], model: "PreTrainedModel" = None, **
         ] * len(batch[f"{kwargs['prefix']}prompt_input_ids"])
 
         ############## MODIFICATION
-        new_label = get_new(batch[f"{kwargs['prefix']}completion_labels"], batch[f"{kwargs['prefix']}completion_labels"])
+        new_label = get_new_mask(batch[f"{kwargs['prefix']}completion_labels"], batch[f"{kwargs['prefix']}completion_labels"])
         batch[f"{kwargs['prefix']}completion_labels"] = new_label
         ##################
     else:
