@@ -36,6 +36,7 @@ pip install https://github.com/Dao-AILab/flash-attention/releases/download/v2.5.
 ## Get axolotl for general model
 git clone https://github.com/OpenAccess-AI-Collective/axolotl
 cd axolotl
+git checkout 55cc214c767741e83ee7b346e5e13e6c03b7b9fa
 pip install -e .
 
 ## Get FastChat
