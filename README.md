@@ -29,9 +29,10 @@ It is recommended to have three separate environments for **sft**, **inference**
 
 ## Collection
 
-- [SFT Dataset: RLHF4MATH/SFT_510K]([RLHF4MATH/SFT_510K](https://huggingface.co/datasets/RLHF4MATH/SFT_510K)), which is a subset of nvidia/OpenMathInstruct-1
-- 
-
+- [SFT Dataset: RLHF4MATH/SFT_510K](https://huggingface.co/datasets/RLHF4MATH/SFT_510K), which is a subset of nvidia/OpenMathInstruct-1
+- [Prompt](https://huggingface.co/datasets/RLHF4MATH/prompt_iter1): RLHF4MATH/prompt_iter1, RLHF4MATH/prompt_iter2, RLHF4MATH/prompt_iter3
+- [SFT Model: RLHF4MATH/Gemma-7B-it-SFT3epoch](https://huggingface.co/RLHF4MATH/Gemma-7B-it-SFT3epoch)
+- [Aligned Model: RLHF4MATH/Gemma-7B-it-M-DPO](https://huggingface.co/RLHF4MATH/Gemma-7B-it-M-DPO)
 
 ## Citation
 
