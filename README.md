@@ -27,6 +27,11 @@ The main pipeline is divided into three steps:
 
 It is recommended to have three separate environments for **sft**, **inference**, and **alignment_train**. Please refer to the corresponding part of this project for the detailed installation instruction. 
 
+## Collection
+
+- [SFT Dataset: RLHF4MATH/SFT_510K]([RLHF4MATH/SFT_510K](https://huggingface.co/datasets/RLHF4MATH/SFT_510K)), which is a subset of nvidia/OpenMathInstruct-1
+- 
+
 
 ## Citation
 
