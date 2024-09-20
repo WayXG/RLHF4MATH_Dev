@@ -21,7 +21,7 @@ from trl import DPOTrainer
 # Define and parse arguments.
 
 ############## MODIFICATION
-def get_new(input_ids, old_labels, model='gemma'):
+def get_new_mask(input_ids, old_labels, model='gemma'):
     # We mask the user turn to create new labels for Gemma model
     labels = copy.deepcopy(old_labels)
     start = False
@@ -155,8 +155,8 @@ class PreferenceDataCollatorWithPadding:
             )
             ############ MODIFICATION
             if self.mask_user_turn:
-                new_chosen_sequence_labels= get_new(chosen_sequence_tokens['input_ids'], chosen_sequence_tokens['labels'], model=self.model_name)            
-                new_rej_sequence_labels = get_new(rejected_sequence_tokens['input_ids'], rejected_sequence_tokens['labels'], model=self.model_name)      
+                new_chosen_sequence_labels= get_new_mask(chosen_sequence_tokens['input_ids'], chosen_sequence_tokens['labels'], model=self.model_name)            
+                new_rej_sequence_labels = get_new_mask(rejected_sequence_tokens['input_ids'], rejected_sequence_tokens['labels'], model=self.model_name)      
                 chosen_sequence_tokens["labels"] = new_chosen_sequence_labels
                 rejected_sequence_tokens["labels"] = new_rej_sequence_labels
             ############
