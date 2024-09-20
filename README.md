@@ -4,7 +4,7 @@ Building Math Agents with Multi-Turn Iterative Preference Learning
 </h1>
 
 <p align="center">
-TL;DL: this is the repo for "<a href="https://arxiv.org/abs/2309.17452" target="_blank">Building Math Agents with Multi-Turn Iterative Preference Learning</a>"
+TL;DL: this is the repo for "<a href="https://arxiv.org/pdf/2409.02392" target="_blank">Building Math Agents with Multi-Turn Iterative Preference Learning</a>"
 </p>
 
 We consider the math problem solving with python interpreter, which means that the model can write a python code and ask the external environmnet to execute and receive the excutaion result, before the LLM makes its next decision.
