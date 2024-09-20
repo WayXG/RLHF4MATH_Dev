@@ -32,9 +32,11 @@ It is recommended to have three separate environments for **sft**, **inference**
 
 If you find the content of this repo useful, please consider cite it as follows:
 
+```bibtex
 @article{xiong2024building,
   title={Building Math Agents with Multi-Turn Iterative Preference Learning},
   author={Xiong, Wei and Shi, Chengshuai and Shen, Jiaming and Rosenberg, Aviv and Qin, Zhen and Calandriello, Daniele and Khalman, Misha and Joshi, Rishabh and Piot, Bilal and Saleh, Mohammad and others},
   journal={arXiv preprint arXiv:2409.02392},
   year={2024}
 }
+```
