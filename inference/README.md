@@ -78,7 +78,7 @@ Then, you can run the scripts/infer_eval.sh, which will generate trajectories wi
 bash scripts/infer_eval.sh gemma_7b
 ```
 
-The iter_infer_to_collect_data.sh additionally takes a for loop to iteratively generate trajectories. The model name should contain mistral, gemma, or deepseek so that the code can specify the prompt format.
+The iter_infer_to_collect_data.sh additionally takes a for loop to iteratively generate trajectories. The model name should contain mistral, gemma, llama, or deepseek so that the code can specify the prompt format.
 
 
 ## 4 Annotate Data
