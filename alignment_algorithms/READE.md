@@ -25,6 +25,7 @@ python -m pip install .
 pip install flash-attn==2.6.3
 pip install accelerate==0.33.0
 
+pip install huggingface-hub==0.24.7
 pip install wandb
 wandb login
 huggingface-cli login
