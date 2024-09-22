@@ -27,7 +27,7 @@ def evaluate(data_name, prompt_type, samples: list=None, file_path: str=None, ex
     # parse gt if not in the dataset
     if 'gt' in samples[0]:
         pass
-    else
+    else:
         for sample in samples:
             sample['gt_cot'], sample['gt'] = parse_ground_truth(sample, data_name)
 
