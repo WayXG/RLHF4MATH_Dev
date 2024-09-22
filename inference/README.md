@@ -3,7 +3,7 @@
 In this repo, we implement the MATH problem solving with external python tool using the VLLM to accelerate infernece.
 
 
-## Installation instructions
+## 1 Installation instructions
 
 **Note that the numpy version should be `numpy<2.0`.  `Numpy 2.0` will encounter unexpected issues!!!**
 
@@ -36,7 +36,7 @@ pip install sympy==1.12
 pip install antlr4-python3-runtime==4.11 # The versions of sympy and antlr4 cannot be modified!!!!!
 ```
 
-## The General Process of Inference
+## 2 The General Process of Inference
 
 The current codes are implemented specially for Gemma (mainly in terms of the prompt format). Fix this to automatically work for other models later...
 
@@ -64,7 +64,7 @@ prompt2 = "<bos><start_of_turn>user\nEvaluate $\\left\\lceil3\\left(6-\\frac12\\
 
 A new step begins and we stop either the model outputs the final answer or reaches the maximal number of tool calls. 
 
-## Running the Code
+## 3 Running the Generation Code
 
 To run the generation, the first step is to register the model as a server so that we can query it. You should first modify the scripts/register_server.sh according to your GPU setup. Then, run the following command with your model.
 
@@ -78,4 +78,11 @@ Then, you can run the scripts/infer_eval.sh, which will generate trajectories wi
 bash scripts/infer_eval.sh gemma_7b
 ```
 
-The iter_infer_to_collect_data.sh additionally takes a for loop to iteratively generate trajectories. 
+The iter_infer_to_collect_data.sh additionally takes a for loop to iteratively generate trajectories. The model name should contain mistral, gemma, or deepseek so that the code can specify the prompt format.
+
+
+## 4 Annotate Data
+
+```sh
+python -um infer_data.annotate_data --data_name gsm8k --prompt_type tora --file_path ./collect_data/gemma_7b/gsm8k/train_tora_7473_seed1_t0.0_s0_e7473_09-22_16-22.jsonl --output_dir test_output.jsonl
+```
