@@ -113,6 +113,8 @@ def main(args):
         stop_tokens = ["<s>", "</s>", "[INST]", "```output"]
     elif "deepseek" in args.model_name_or_path:
         stop_tokens = ["<｜end▁of▁sentence｜>", "User", "```output"]
+    elif "llama3" in args.model_name_or_path:
+        stop_tokens = ["<|eot_id|>", "<|start_header_id|>user", "```output"]
     else:
         raise NotImplementedError(args.prompt_type + "and " + args.model_name_or_path)
     default_args = {
@@ -249,6 +251,8 @@ def main(args):
                 #exec_result = f"<｜end▁of▁sentence｜>User: ```output\n{exec_result}\n```\n\nAssistant:"
                 #for deepseek, we directly append the observation as the training of deepseek
                 exec_result = f"\n```output\n{exec_result}\n```\n"
+            elif "llama3" in args.model_name_or_path:
+                exec_result = f"<|eot_id|><|start_header_id|>user<|end_header_id|>\n\n```output\n{exec_result}\n```<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n"
             else:
                 raise NotImplementedError(args.prompt_type + "and " + args.model_name_or_path)
 
