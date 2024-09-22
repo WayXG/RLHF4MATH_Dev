@@ -3,6 +3,10 @@ from datasets import load_dataset, Dataset
 import random
 import json
 
+# Define the file path and output dir
+data_files = 'here.jsonl'
+output_dir = "huggingface/dataset_name"
+
 # Load the dataset
 ds0 = load_dataset('json', data_files='here.jsonl', split='train')
 
@@ -106,3 +110,11 @@ for pair in selected_samples:
             "rejected": pair[1]["messages"],}
     )
 
+dict_data = {
+    "rejected": [d['rejected'] for d in all_samples],
+    "chosen": [d['chosen'] for d in all_samples],
+    "gt": [d['gt'] for d in all_samples],
+}
+
+final_ds = Dataset.from_dict(dict_data)
+final_ds.push_to_hub(output_dir)
