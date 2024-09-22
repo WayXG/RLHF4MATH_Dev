@@ -111,9 +111,9 @@ def top_k_top_p_filtering(
 ```
 
 
-3 ## Running the Code
+## 3 Running the Code
 
-### 1 DPO
+### 3.1 DPO
 Running the code before modify num_processes: 8 in ./training_configs/zero2_pf.yaml, the number 8 means that you will use 8 GPUs. Also modify the parameters, models, and datasets provided in run_dpo.py.
 
 ```shell
@@ -121,7 +121,7 @@ accelerate launch --config_file ./training_configs/zero2_pf.yaml run_dpo.py ./tr
 
 ```
 
-### 2 KTO 
+### 3.2 KTO 
 
 ```shell
 bash run_kto.sh
